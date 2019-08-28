@@ -15,9 +15,16 @@ void loop() {
 Serial.println("LewatSiniKah???"); 
 delay(200);
 attachInterrupt(34,rusak,CHANGE);
+  x=digitalRead(25);
   if (x) //Bila PIN 25 rendah, Masuk mode light sleep
   {
+   Serial.println("Mau Tidur zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+     delay(100);
    lightSleep(); 
+  }
+  else
+  {
+    Serial.println("Aku Tidak Tertidur");
   }
   
   //While function for active condition [&& pin30==HIGH]
@@ -30,9 +37,10 @@ delay(1000);
 
 void lightSleep()
 {
-  esp_sleep_enable_timer_wakeup(3000000); // Timer Sleep
- // gpio_wakeup_enable(GPIO_NUM_25,GPIO_INTR_HIGH_LEVEL); //GPIO PIN
-  //esp_sleep_enable_gpio_wakeup();
+  esp_sleep_enable_timer_wakeup(10000000); // Timer Sleep
+  gpio_wakeup_enable(GPIO_NUM_25,GPIO_INTR_LOW_LEVEL);
+  gpio_wakeup_enable(GPIO_NUM_34,GPIO_INTR_HIGH_LEVEL);//GPIO PIN
+  esp_sleep_enable_gpio_wakeup();
   esp_light_sleep_start();
   print_wakeup_reason();
 }
