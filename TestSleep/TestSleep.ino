@@ -21,32 +21,42 @@ int TimeStop;
 String cetak="";
 String kalimat="";
 boolean enter;
+int count;
+int count2;
+int baterai;
 
 void setup() {
   Serial.begin(115200);
+  EEPROM.begin(512);
+  pinMode(34,INPUT_PULLUP); //rusak
+  pinMode(25,INPUT_PULLUP); // toggle
+  pinMode(23,INPUT_PULLUP);//push up button
+  pinMode(13,INPUT_PULLUP); // enter
+  pinMode(12,INPUT); // batlev
   // put your setup code here, to run once:
   Serial.println("Back to Setup");
-  pinMode(34,INPUT_PULLUP);
-  pinMode(25,INPUT_PULLUP);
-  pinMode(23,INPUT_PULLUP);//push up button
-  pinMode(13,INPUT_PULLUP);
-
+  writeKeyEEPROM("Kunciiniasli!!!!Kunciiniasli!!!!",32,64);
+  writeKeyEEPROM("12345678",10,17);
+   
    if (! rtc.begin()) {
   Serial.println("Couldn't find RTC");
   while (1);
   rtc.adjust(DateTime(__DATE__, __TIME__));}
-
+  TimeNow = RTCnow();
+  TimeStop= RTCnext(TimeNow);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
 Serial.println("LewatSiniKah???"); 
+Serial.println("BeforeSleepKey: " + readKey(32,64));
 delay(200);
 attachInterrupt(34,rusak,RISING);
   x=digitalRead(25);
   if (x) //Bila PIN 25 rendah, Masuk mode light sleep 
   {
    Serial.println("Mau Tidur zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+     
      delay(100);
     display.ssd1306_command(SSD1306_DISPLAYOFF);
    lightSleep(); 
@@ -61,23 +71,27 @@ attachInterrupt(34,rusak,RISING);
   x=digitalRead(25);
   if (!x)
   {
-      TimeNow = RTCnow();
-      TimeStop= RTCnext(TimeNow);
-    while(!x && !interruptTrigger && TimeNow<TimeStop)
+    TimeNow = RTCnow();
+    while(!x && !interruptTrigger && TimeNow<TimeStop-3)
     {
         int num=0;
         switch(num)
         {
           case 1:
             {
-              //
               break;
             }
           case 2://Misalkan ini yang masukin password
             {
               //Read String from smartphone, then compare to the real PIN. then add the logic for resetState if true.
+              //Send Response to PHONE 
+              // Dengan ini tidak mungkin masuk ke while bagian bawah
               break;
             }
+          case 3:
+            //ini untuk input nilai PIN
+          case 4:
+           // ini untuk memasukkan nilai kunci.
           default:
             {
               //
@@ -86,38 +100,79 @@ attachInterrupt(34,rusak,RISING);
         DateTime test = rtc.now();
         String detik = String(test.hour())+":"+ String(test.minute())+":"+ String(test.second());
         String tanggal = String(test.day())+"-"+ String(test.month())+"-"+ String(test.year());
-        printToOLEDmultisize(detik,tanggal,2,1);
+      //  printToOLEDmultisize(detik,tanggal,2,1);
+          String privatekey = readKey(32,64);
+          Serial.println("Private Key : "+privatekey);
+          printToOLEDtriple(detik,tanggal,privatekey,2,1,1);
           TimeNow=RTCnow();
-          TimeStop=RTCnext(TimeNow);
-          x=digitalRead(25);
+        x=digitalRead(25);
         Serial.println("Aku didalam While");
         Serial.println("Waktu sekarang : " + String(TimeNow));
-        
-           int count=0;
-           cetak="0";
-           kalimat="";
-           enter=false;
-           while(insertSoon)
-            {
-             attachInterrupt(23,tambah,RISING);
-             attachInterrupt(13,pindahdigit,RISING);
-               while(!enter) //Saat enter keluar, loop sudah true
-               {
-                delay(500);
-               }
-             Serial.println("Keluar dari enter");
-             enter=false;
-             printToOLEDmultisize(kalimat+cetak,"Enter PIN 8 digit",2,1);
-            } 
+        //// kode di bawah Ini hanya untuk tes, tidak mencerminkan realtime
+          float batteryLevel = map(analogRead(12), 0.0f, 4095.0f, 0, 100);
+          Serial.println(batteryLevel);
+    
+         /////////////////////////////////////////////////////////////////////
         delay(1000);// INI NANTI DIAPUS
     }
   }
+  TimeNow = RTCnow();
+ 
+  if((TimeNow<TimeStop)&&!x) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+  {
+      count2=0;
+      cetak="0";
+       kalimat="";
+       enter=false;
+             while(count2<8)
+              {
+               attachInterrupt(23,tambah,RISING);
+               attachInterrupt(13,pindahdigit,RISING);
+                 while(!enter && count2<8) //Saat enter keluar, loop sudah true
+                 {
+                  delay(500);
+                 }
+                 if(count2==8)
+                    {
+                          printToOLEDmultisize("PIN SALAH","Omae wa mou shindeiru",2,1);
+                         break;
+                    }
+               
+               Serial.println("Keluar dari enter");
+               enter=false;
+               printToOLEDmultisize(kalimat+cetak,"Enter PIN 8 digit",2,1);
+               
+              }
+             Serial.println("Pin yang anda masukkan= " +kalimat);
+             if(kalimat==readKey(10,17))
+               printToOLEDmultisize("SUCCEED","Salam Asong",1,1);
+             else
+               printToOLEDmultisize("FAIL","Salam Pak Iqbal",1,1);
+  } 
+/*    if (compare) // compare dengan input pada wallet
+      //Auth Succeed, TimeStop+=168, break
+    else
+      //Auth Fail + Omae wa + TimeStop+=168, break
+  }*/
+  TimeNow = RTCnow();
+  if (TimeStop==TimeNow) //Apakah fungsi ini tidak dibutuhkan lagi? - Bila dalam masa tenggang tidak dimasukkan pin, auto tamat
+  {
+    //kemudian TimeStop+=168
+  }
+  
   //Gunakan fungsi IF disini untuk  a)bila TimeNow>=TimeStop ; b) menentukan apakan PIN sama ;||Compare saja 2 alamat di EEPROM, bila tidak sama = shindeiru//
   //If baterai<10 persen, shindeiru
+
+  if (interruptTrigger)
+  {
+      writeKeyEEPROM("Omae wa mou shindeiru",32,64);
+      EEPROM.commit();
+  }
 
 Serial.println("Hey Tayo Hey Tayo");
 interruptTrigger=false;
 delay(1000);
+
 }
 
 void lightSleep()
@@ -131,7 +186,6 @@ void lightSleep()
 }
 void rusak()
 {
-  //writeEEPROMkey("Omae wa mou shindeiru",32,64);
   Serial.println("Shinde");
   interruptTrigger=true;
   detachInterrupt(34);
@@ -203,6 +257,28 @@ void printToOLEDmultisize (String str1, String str2, int size1 , int size2)
   display.println(str1);
   display.setTextSize(size2);
   display.println(str2);
+  display.setTextSize(3);
+  display.println("$S-KEY$");
+  display.display(); 
+}
+
+void printToOLEDtriple (String str1, String str2,String str3, int size1 , int size2, int size3)
+{
+   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+ 
+  display.clearDisplay();
+  display.setTextSize(size1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 10);
+  // Display static text
+  display.println(str1);
+  display.setTextSize(size2);
+  display.println(str2);
+  display.setTextSize(size3);
+  display.println(str3);
   display.display(); 
 }
 
@@ -235,12 +311,48 @@ void tambah ()
   Serial.println("triggered");
   cetak=naikAngka(cetak);
   detachInterrupt(23);
+  //delay(300);
   enter=true;
 }
 
 void pindahdigit ()
 {
  Serial.println("triggert ganti digit");
+ count2++;
  kalimat+=cetak;
- detachInterrupt(35);
+ delay(100);
+ detachInterrupt(13);
+}
+
+void writeKeyEEPROM (String key,int startadd,int untiladd) 
+{
+  int count = 0;
+  for (int i=startadd;i<=untiladd;i++) 
+  {
+    EEPROM.write(i, key[count]);
+    count++;
+  }
+  EEPROM.commit();
+}
+
+void writeKeyEEPROMnocommit (String key,int startadd,int untiladd) 
+{
+  int count = 0;
+  for (int i=startadd;i<=untiladd;i++) 
+  {
+    EEPROM.write(i, key[count]);
+    count++;
+  }
+  //EEPROM.commit();
+}
+
+String readKey (int startadd, int untiladd)
+{
+  String key;
+   for (int i=startadd;i<=untiladd;i++) 
+  {
+     char karakter = char(EEPROM.read(i));
+     key = String (key+karakter);
+  }
+return key;
 }
