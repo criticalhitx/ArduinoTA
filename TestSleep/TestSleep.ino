@@ -44,14 +44,16 @@ void setup() {
   rtc.adjust(DateTime(__DATE__, __TIME__));}
   TimeNow = RTCnow();
   TimeStop= RTCnext(TimeNow);
+ 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+ attachInterrupt(34,rusak,RISING);
 Serial.println("LewatSiniKah???"); 
 Serial.println("BeforeSleepKey: " + readKey(32,64));
 delay(200);
-attachInterrupt(34,rusak,RISING);
+
   x=digitalRead(25);
   if (x) //Bila PIN 25 rendah, Masuk mode light sleep 
   {
@@ -69,11 +71,12 @@ attachInterrupt(34,rusak,RISING);
   //While function for active condition [&& pin30==HIGH]
 
   x=digitalRead(25);
-  if (!x)
+  if (!x) // bila bangun
   {
     TimeNow = RTCnow();
-    while(!x && !interruptTrigger && TimeNow<TimeStop-3)
+    while(!x && !interruptTrigger && TimeNow<TimeStop-3) // normal time
     {
+        
         int num=0;
         switch(num)
         {
@@ -111,43 +114,21 @@ attachInterrupt(34,rusak,RISING);
         //// kode di bawah Ini hanya untuk tes, tidak mencerminkan realtime
           float batteryLevel = map(analogRead(12), 0.0f, 4095.0f, 0, 100);
           Serial.println(batteryLevel);
-    
+          converttoRealTime(176184);
          /////////////////////////////////////////////////////////////////////
         delay(1000);// INI NANTI DIAPUS
     }
   }
   TimeNow = RTCnow();
  
-  if((TimeNow<TimeStop)&&!x) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+  if((TimeNow<TimeStop)&&!x&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
   {
-      count2=0;
-      cetak="0";
-       kalimat="";
-       enter=false;
-             while(count2<8)
-              {
-               attachInterrupt(23,tambah,RISING);
-               attachInterrupt(13,pindahdigit,RISING);
-                 while(!enter && count2<8) //Saat enter keluar, loop sudah true
-                 {
-                  delay(500);
-                 }
-                 if(count2==8)
-                    {
-                          printToOLEDmultisize("PIN SALAH","Omae wa mou shindeiru",2,1);
-                         break;
-                    }
-               
-               Serial.println("Keluar dari enter");
-               enter=false;
-               printToOLEDmultisize(kalimat+cetak,"Enter PIN 8 digit",2,1);
-               
-              }
-             Serial.println("Pin yang anda masukkan= " +kalimat);
-             if(kalimat==readKey(10,17))
-               printToOLEDmultisize("SUCCEED","Salam Asong",1,1);
-             else
-               printToOLEDmultisize("FAIL","Salam Pak Iqbal",1,1);
+      printToOLED("Insert your PIN before :\n"+converttoRealTime(TimeStop),1);
+      boolean isPinTrue = cekPinMasaTenggang();
+      while (!isPinTrue && TimeNow<TimeStop)
+      {
+        isPinTrue=cekPinMasaTenggang();
+      }
   } 
 /*    if (compare) // compare dengan input pada wallet
       //Auth Succeed, TimeStop+=168, break
@@ -221,12 +202,20 @@ int RTCnext(int nowRTC)
     while(waktuMula<=nowRTC)
     {
       waktuMula+=7*24;
-      //Serial.println("Masih jauh bro");
     }
   return waktuMula;
 }
 
-void printToOLED (String str)
+String converttoRealTime(int time) // hanya sampai jam saja.
+{
+  int year = (time/(12*31*24))+2000;
+  int month = (time-((year-2000)*12*31*24))/(31*24);
+  int day = (time-((year-2000)*12*31*24)-(month*31*24))/(24);
+  int hour = (time-((year-2000)*12*31*24)-(month*31*24) -(day*24));
+  return (String(day) + "-" + String(month) + "-" + String(year) +"\n"+ String(hour) + " o'clock");
+}
+
+void printToOLED (String str,int size)
 {
    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
@@ -234,7 +223,7 @@ void printToOLED (String str)
   }
  
   display.clearDisplay();
-  display.setTextSize(3);
+  display.setTextSize(size);
   display.setTextColor(WHITE);
   display.setCursor(0, 10);
   // Display static text
@@ -344,7 +333,7 @@ void writeKeyEEPROMnocommit (String key,int startadd,int untiladd)
     count++;
   }
   //EEPROM.commit();
-}
+}           
 
 String readKey (int startadd, int untiladd)
 {
@@ -355,4 +344,41 @@ String readKey (int startadd, int untiladd)
      key = String (key+karakter);
   }
 return key;
+}
+
+boolean cekPinMasaTenggang ()
+{
+      count2=0;
+      cetak="0";
+       kalimat="";
+       enter=false;
+             while(count2<8)
+              {
+               attachInterrupt(23,tambah,RISING);
+               attachInterrupt(13,pindahdigit,RISING);
+                 while(!enter && count2<8) //Saat enter keluar, loop sudah true
+                 {
+                  delay(500);
+                 }
+                 if(count2==8)
+                    {
+                          printToOLEDmultisize("PIN SALAH","Omae wa mou shindeiru",2,1);
+                         break;
+                    }
+               
+               Serial.println("Keluar dari enter");
+               enter=false;
+               printToOLEDmultisize(kalimat+cetak,"Enter PIN 8 digit",2,1);
+               
+              }
+             Serial.println("Pin yang anda masukkan= " +kalimat);
+             if(kalimat==readKey(10,17))
+               {TimeStop+=168;
+                printToOLEDmultisize("SUCCEED","New Deadline:\n "+converttoRealTime(TimeStop),1,1);
+               delay(3000);
+               return true;}
+             else
+               {printToOLEDmultisize("FAIL","Please Try Again",1,1);
+               delay(3000);
+               return false;}
 }
