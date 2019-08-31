@@ -34,8 +34,29 @@ void setup() {
   pinMode(13,INPUT_PULLUP); // enter
   pinMode(12,INPUT); // batlev
   // put your setup code here, to run once:
+  //ThisKeyIsReal!!!ThisKeyIsReal!!!
+ // delay(5000);
   Serial.println("Back to Setup");
-  writeKeyEEPROM("Kunciiniasli!!!!Kunciiniasli!!!!",32,64);
+  if (digitalRead(34)==HIGH)
+  {
+    Serial.println("SHINDE WITHOUT POWER"); 
+   // printToOLED("Maling triggered saat power mati! Swiper jangan mencuri!",1);
+    writeKeyEEPROM("Omae wa Mou Shindeiru!",32,64);
+  }
+ // writeKeyEEPROM("ThisKeyIsReal!!!ThisKeyIsReal!!!",32,64);
+  //Kondisi dibawah ini menunjukkan bahwa PIN sudah shindeiru, its printed on the OLED.
+    if(EEPROM.read(32)==79)
+    {
+      printToOLED("Shindeiru Loh",1);
+      delay(3000);
+      printToOLED("Kagi ga nain desu ga,\nSugu kagi o settei shite kudasai",1);
+       String myKey= Serial.readString();
+         while(myKey==NULL)
+        {
+          myKey=Serial.readString();
+        }
+      writeKeyEEPROM(myKey,32,64);
+    }
   writeKeyEEPROM("12345678",10,17);
    
    if (! rtc.begin()) {
