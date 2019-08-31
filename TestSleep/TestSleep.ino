@@ -1,3 +1,4 @@
+
 #include <esp_sleep.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -24,10 +25,18 @@ boolean enter;
 int count;
 int count2;
 int baterai;
+int NextAuth;
 
+// 32-64 PrivateKey, 10-17 PIN, 18-23 TimeStop, 24-29 NextAuth
 void setup() {
   Serial.begin(115200);
   EEPROM.begin(512);
+  
+  if (! rtc.begin()) {
+  Serial.println("Couldn't find RTC");
+  while (1);
+  rtc.adjust(DateTime(__DATE__, __TIME__));}
+  
   pinMode(34,INPUT_PULLUP); //rusak
   pinMode(25,INPUT_PULLUP); // toggle
   pinMode(23,INPUT_PULLUP);//push up button
@@ -43,10 +52,11 @@ void setup() {
    // printToOLED("Maling triggered saat power mati! Swiper jangan mencuri!",1);
     writeKeyEEPROM("Omae wa Mou Shindeiru!",32,64);
   }
+
  // writeKeyEEPROM("ThisKeyIsReal!!!ThisKeyIsReal!!!",32,64);
   //Kondisi dibawah ini menunjukkan bahwa PIN sudah shindeiru, its printed on the OLED.
     if(EEPROM.read(32)==79)
-    {
+    { 
       printToOLED("Shindeiru Loh",1);
       delay(3000);
       printToOLED("Kagi ga nain desu ga,\nSugu kagi o settei shite kudasai",1);
@@ -57,20 +67,54 @@ void setup() {
         }
       writeKeyEEPROM(myKey,32,64);
     }
-  writeKeyEEPROM("12345678",10,17);
-   
-   if (! rtc.begin()) {
-  Serial.println("Couldn't find RTC");
-  while (1);
-  rtc.adjust(DateTime(__DATE__, __TIME__));}
-  TimeNow = RTCnow();
-  TimeStop= RTCnext(TimeNow);
- 
+  writeKeyEEPROM("12345678",10,17); 
+//  writeKeyEEPROM("176184",24,29); // which is hari minggu lalu (176184) //This line will be deleted. we can fill this space using another scetch.
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
- attachInterrupt(34,rusak,RISING);
+  TimeNow = RTCnow();
+  TimeStop= RTCnext(TimeNow);
+  Serial.println("TimeNow = "+String(TimeNow));//
+  Serial.println("TimeStop = "+String(TimeStop));//
+  writeKeyEEPROM(String(TimeStop),18,23);
+  NextAuth=stringToInt(readKey(24,29));
+  Serial.println("NextAuth = "+String(NextAuth));//
+  
+  while (TimeNow>=NextAuth) //Kasus ini ketika didiamkan walletnya tanpa mau authentikasi. harus masukkan pin dan kunci lagi
+  {
+    Serial.println("Harus Authentikasi nih ceritanya");
+    writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64);
+    printToOLEDmultisize("OOPS!","Terlambat masukin PIN ya?",2,1);
+    delay(2000);
+    printToOLED("Insert PIN NOW\nto recover the wallet!!",1);
+   
+    String lateAuth=Serial.readString();
+    while (lateAuth==NULL)
+    {
+      lateAuth=Serial.readString();
+    }
+    if (lateAuth==readKey(10,17))
+    {
+      writeKeyEEPROM(String(TimeStop),24,29);
+      NextAuth=stringToInt(readKey(24,29));
+      printToOLED("Selamat!!\nSekarang masukkan Key!!",1);
+       //ThisKeyIsReal!!!ThisKeyIsReal!!!
+      String lateKey=Serial.readString();
+      while(lateKey==NULL)
+      {
+        lateKey=Serial.readString();
+      }
+      writeKeyEEPROM(lateKey,32,64);//Mengembalikan kunci yang sempat dishindeirukan.
+      printToOLED("Now you can use the wallet!!\nHooray!!!",1);
+      delay(3000);
+    }
+    else
+      printToOLED("PIN salah, coba lagi :D",1);
+    delay(1000);
+  }
+  ///////////////////////////////////////////////////////////////////////////////////
+attachInterrupt(34,rusak,RISING);
 Serial.println("LewatSiniKah???"); 
 Serial.println("BeforeSleepKey: " + readKey(32,64));
 delay(200);
@@ -157,14 +201,6 @@ delay(200);
       //Auth Fail + Omae wa + TimeStop+=168, break
   }*/
   TimeNow = RTCnow();
-  if (TimeStop==TimeNow) //Apakah fungsi ini tidak dibutuhkan lagi? - Bila dalam masa tenggang tidak dimasukkan pin, auto tamat
-  {
-    //kemudian TimeStop+=168
-  }
-  
-  //Gunakan fungsi IF disini untuk  a)bila TimeNow>=TimeStop ; b) menentukan apakan PIN sama ;||Compare saja 2 alamat di EEPROM, bila tidak sama = shindeiru//
-  //If baterai<10 persen, shindeiru
-
   if (interruptTrigger)
   {
       writeKeyEEPROM("Omae wa mou shindeiru",32,64);
@@ -267,7 +303,7 @@ void printToOLEDmultisize (String str1, String str2, int size1 , int size2)
   display.println(str1);
   display.setTextSize(size2);
   display.println(str2);
-  display.setTextSize(3);
+  display.setTextSize(1);
   display.println("$S-KEY$");
   display.display(); 
 }
@@ -402,4 +438,42 @@ boolean cekPinMasaTenggang ()
                {printToOLEDmultisize("FAIL","Please Try Again",1,1);
                delay(3000);
                return false;}
+}
+
+int stringToInt(String x)
+{
+  int key=0;
+  int charint;
+  for (int i=0;i<=5;i++)
+  {
+    char nilaiperchar = x[i];
+      if(nilaiperchar=='0')
+        charint=0;
+      if(nilaiperchar=='1')
+        charint=1;
+      if(nilaiperchar=='2')
+        charint=2;
+      if(nilaiperchar=='3')
+        charint=3;
+      if(nilaiperchar=='4')
+        charint=4;
+      if(nilaiperchar=='5')
+        charint=5;
+      if(nilaiperchar=='6')
+        charint=6;
+      if(nilaiperchar=='7')
+        charint=7;
+      if(nilaiperchar=='8')
+        charint=8;
+      if(nilaiperchar=='9')
+        charint=9;
+      
+    int perkalian = 1;
+      for (int ii=5;ii>i;ii--)
+      {
+        perkalian*=10;
+      }
+    key+=(charint*perkalian);
+  }
+  return key;
 }
