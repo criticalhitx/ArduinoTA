@@ -8,6 +8,8 @@
 #include <EEPROM.h>
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define RXD2 16
+#define TXD2 17
 
 RTC_DS3231 rtc;
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
@@ -21,8 +23,11 @@ int TimeNow;
 int TimeStop;
 String cetak="";
 String kalimat="";
+String nilaiString;
+String readString;
 boolean enter;
 int count;
+int var=0;
 int count2;
 int baterai;
 int NextAuth;
@@ -30,12 +35,13 @@ int NextAuth;
 // 32-64 PrivateKey, 10-17 PIN, 18-23 TimeStop, 24-29 NextAuth
 void setup() {
   Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
   EEPROM.begin(512);
   
   if (! rtc.begin()) {
   Serial.println("Couldn't find RTC");
   while (1);
-  rtc.adjust(DateTime(__DATE__, __TIME__));}
+  rtc.adjust(DateTime(2019,3,9,11,7,0));}
   
   pinMode(34,INPUT_PULLUP); //rusak
   pinMode(25,INPUT_PULLUP); // toggle
@@ -46,7 +52,7 @@ void setup() {
   //ThisKeyIsReal!!!ThisKeyIsReal!!!
  // delay(5000);
   Serial.println("Back to Setup");
-  if (digitalRead(34)==HIGH)
+   if (digitalRead(34)==HIGH)
   {
     Serial.println("SHINDE WITHOUT POWER"); 
    // printToOLED("Maling triggered saat power mati! Swiper jangan mencuri!",1);
@@ -55,17 +61,25 @@ void setup() {
 
  // writeKeyEEPROM("ThisKeyIsReal!!!ThisKeyIsReal!!!",32,64);
   //Kondisi dibawah ini menunjukkan bahwa PIN sudah shindeiru, its printed on the OLED.
-    if(EEPROM.read(32)==79)
+    if(EEPROM.read(32)==79)//EEPROM.read(32)==79 || EEPROM.read(32)==66
     { 
       printToOLED("Shindeiru Loh",1);
       delay(3000);
       printToOLED("Kagi ga nain desu ga,\nSugu kagi o settei shite kudasai",1);
-       String myKey= Serial.readString();
-         while(myKey==NULL)
+       String myKey= Serial2.readString();
+         while(myKey!="4") // masuk menu insert key di aplikasi
         {
-          myKey=Serial.readString();
+          myKey=Serial2.readString();
         }
-      writeKeyEEPROM(myKey,32,64);
+        String myKeyShin = Serial2.readString();
+        {
+          while(myKeyShin==NULL)
+          {
+            myKeyShin=Serial2.readString();
+          }
+        }
+     // Serial.println("Done Reading");
+      writeKeyEEPROM(myKeyShin,32,64);
     }
   writeKeyEEPROM("12345678",10,17); 
 //  writeKeyEEPROM("176184",24,29); // which is hari minggu lalu (176184) //This line will be deleted. we can fill this space using another scetch.
@@ -88,22 +102,34 @@ void loop() {
     printToOLEDmultisize("OOPS!","Terlambat masukin PIN ya?",2,1);
     delay(2000);
     printToOLED("Insert PIN NOW\nto recover the wallet!!",1);
-   
-    String lateAuth=Serial.readString();
-    while (lateAuth==NULL)
-    {
-      lateAuth=Serial.readString();
+    
+    String lateMode=Serial2.readString();
+    while (lateMode!="5"){
+      lateMode=Serial2.readString();
     }
+    
+    String lateAuth=Serial2.readString();
+    while (lateAuth==NULL){
+      lateAuth=Serial2.readString();
+    }
+    
     if (lateAuth==readKey(10,17))
     {
       writeKeyEEPROM(String(TimeStop),24,29);
       NextAuth=stringToInt(readKey(24,29));
       printToOLED("Selamat!!\nSekarang masukkan Key!!",1);
        //ThisKeyIsReal!!!ThisKeyIsReal!!!
-      String lateKey=Serial.readString();
+
+      String PintokeyMode = Serial2.readString(); // Pengguna disuruh masuk ke mode PIN
+      while (PintokeyMode!="4")
+      {
+        PintokeyMode = Serial2.readString();
+      }
+      
+      String lateKey=Serial2.readString();
       while(lateKey==NULL)
       {
-        lateKey=Serial.readString();
+        lateKey=Serial2.readString();
       }
       writeKeyEEPROM(lateKey,32,64);//Mengembalikan kunci yang sempat dishindeirukan.
       printToOLED("Now you can use the wallet!!\nHooray!!!",1);
@@ -141,9 +167,15 @@ delay(200);
     TimeNow = RTCnow();
     while(!x && !interruptTrigger && TimeNow<TimeStop-3) // normal time
     {
+        while (Serial2.available()){ 
+              char c= Serial2.read();
+              readString += c;}
         
-        int num=0;
-        switch(num)
+        if (readString.length() > 0)   {  
+        var = readString.toInt();}
+        printToOLED("Nilai Var: "+String(var),1);
+        delay(500);
+        switch(var)
         {
           case 1:
             {
@@ -159,7 +191,38 @@ delay(200);
           case 3:
             //ini untuk input nilai PIN
           case 4:
-           // ini untuk memasukkan nilai kunci.
+            {
+              Serial2.print("Masuk");
+              printToOLEDmultisize("Insert Key Mode","",1,2);
+              String nilaiString;
+              boolean insideloop4=true;
+              
+              while(insideloop4)
+              {
+                 while(nilaiString==NULL)
+                {
+                  while(Serial2.available())
+                  {
+                    nilaiString=Serial2.readString();
+                  }
+                  
+                }
+                if (nilaiString=="moemoe")//Keluar
+                  {
+                    insideloop4=false;
+                  }
+                  else
+                  {
+                    writeKeyEEPROM(nilaiString,32,63);
+                    printToOLED(nilaiString + " is written to the wallet",1);
+                    delay(2000);  
+                  }
+                    nilaiString=""; 
+              }
+              readString="";
+              var=0;
+              break;
+            }
           default:
             {
               //
@@ -177,10 +240,8 @@ delay(200);
         Serial.println("Aku didalam While");
         Serial.println("Waktu sekarang : " + String(TimeNow));
         //// kode di bawah Ini hanya untuk tes, tidak mencerminkan realtime
-          float batteryLevel = map(analogRead(12), 0.0f, 4095.0f, 0, 100);
-          Serial.println(batteryLevel);
-          converttoRealTime(176184);
          /////////////////////////////////////////////////////////////////////
+                      
         delay(1000);// INI NANTI DIAPUS
     }
   }
