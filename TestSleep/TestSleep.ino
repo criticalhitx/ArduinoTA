@@ -41,7 +41,7 @@ void setup() {
   if (! rtc.begin()) {
   Serial.println("Couldn't find RTC");
   while (1);
-  rtc.adjust(DateTime(2019,3,9,11,7,0));}
+  rtc.adjust(DateTime(__DATE__,__TIME__));}
   
   pinMode(34,INPUT_PULLUP); //rusak
   pinMode(25,INPUT_PULLUP); // toggle
