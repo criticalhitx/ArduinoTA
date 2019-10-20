@@ -52,6 +52,7 @@ void setup() {
   //ThisKeyIsReal!!!ThisKeyIsReal!!!
  // delay(5000);
   Serial.println("Back to Setup");
+   
    if (digitalRead(34)==HIGH)
   {
     Serial.println("SHINDE WITHOUT POWER"); 
@@ -140,7 +141,7 @@ void loop() {
     delay(1000);
   }
   ///////////////////////////////////////////////////////////////////////////////////
-attachInterrupt(34,rusak,RISING);
+attachInterrupt(34,rusak,CHANGE);
 Serial.println("LewatSiniKah???"); 
 Serial.println("BeforeSleepKey: " + readKey(32,64));
 delay(200);
@@ -148,7 +149,7 @@ delay(200);
   x=digitalRead(25);
   if (x) //Bila PIN 25 rendah, Masuk mode light sleep 
   {
-   Serial.println("Mau Tidur zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz");
+   Serial.println("Mau Tidur zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"); 
      
      delay(100);
     display.ssd1306_command(SSD1306_DISPLAYOFF);
@@ -163,9 +164,11 @@ delay(200);
 
   x=digitalRead(25);
   if (!x) // bila bangun
-  {
+  { 
     TimeNow = RTCnow();
-    while(!x && !interruptTrigger && TimeNow<TimeStop-3) // normal time
+    String NextAuthw = readKey(24,29);
+    NextAuth = stringToInt(NextAuthw);
+    while(!x && !interruptTrigger && (TimeNow<NextAuth-60))  // normal time
     {
         while (Serial2.available()){ 
               char c= Serial2.read();
@@ -492,6 +495,7 @@ boolean cekPinMasaTenggang ()
              Serial.println("Pin yang anda masukkan= " +kalimat);
              if(kalimat==readKey(10,17))
                {TimeStop+=168;
+                writeKeyEEPROM(String(TimeStop),24,29);
                 printToOLEDmultisize("SUCCEED","New Deadline:\n "+converttoRealTime(TimeStop),1,1);
                delay(3000);
                return true;}
