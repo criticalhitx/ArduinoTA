@@ -225,6 +225,17 @@ delay(200);
               break;
             }
           case 3:
+            {
+              printToOLED("Now Entering Mode Register",1);
+              String pkNew = randStr(32);
+              Serial2.print(pkNew);
+              waitfromHP("moemoe"); // Cuma nunggu kok
+        
+              var=0;
+              readString="";
+              delay(3000);
+              break;
+            }
             //
           case 5: //ini untuk input Change PIN
            {
@@ -232,7 +243,7 @@ delay(200);
             Serial2.print("Wallet Siap!");
             
             String pinfromHP= queryfromHP();
-              if(pinfromHP!="moemoe") // bila moemoe langsung keluar aja 
+              if(pinfromHP!="moemoe")
                 {
                   writeKeyEEPROM(pinfromHP,10,17);
                   printToOLED(pinfromHP+" is written to PIN space",1);
@@ -675,7 +686,7 @@ void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
     while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
-      printToOLED("Nilai query saat dalam: "+query,1);
+     printToOLED("Nilai query saat dalam: "+query,1);
       delay(500);
     }
 }
@@ -692,4 +703,16 @@ String queryfromHP() // Menungu respon dari HP
       
     }
     return nilaiString;
+}
+
+String randStr (int numBytes) // Generate random number fixed size
+{
+  int i = 0;
+  String letters[37] = {"a", "b", "c", "d", "e", "f","g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"};
+  String randString;
+    for(i = 0; i<numBytes; i++)
+    {
+     randString+=letters[random(0, 36)];
+    }
+    return randString;
 }
