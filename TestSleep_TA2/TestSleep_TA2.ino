@@ -44,7 +44,7 @@ void setup() {
   rtc.adjust(DateTime(__DATE__,__TIME__));}
   
   pinMode(34,INPUT_PULLUP); //rusak
-  pinMode(25,INPUT_PULLUP); // toggle
+ // pinMode(25,INPUT_PULLUP); // toggle
   pinMode(23,INPUT_PULLUP);//push up button
   pinMode(13,INPUT_PULLUP); // enter
   pinMode(12,INPUT); // batlev
@@ -52,13 +52,15 @@ void setup() {
   //ThisKeyIsReal!!!ThisKeyIsReal!!!
  // delay(5000);
   Serial.println("Back to Setup");
-
+  
    //-----------Kondisi Bongkar tanpa Power---------------
    if (digitalRead(34)==HIGH)
   {
     writeKeyEEPROM("Omae wa Mou Shindeiru!",32,64);
+    
   }
   //-------------------------------------------------------
+
 
  //writeKeyEEPROM("aiharakotoko",65,77);
 
@@ -155,7 +157,7 @@ Serial.println("LewatSiniKah???");
 Serial.println("BeforeSleepKey: " + readKey(32,64));
 delay(200);
 
-  x=digitalRead(25);
+ /* x=digitalRead(25);
   if (x) //Bila PIN 25 rendah, Masuk mode light sleep 
   {
    Serial.println("Mau Tidur zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"); 
@@ -167,11 +169,13 @@ delay(200);
   else
   {
     Serial.println("Aku Tidak Tertidur");
-  }
+  }*/
   
   //While function for active condition [&& pin30==HIGH]
 
-  x=digitalRead(25);
+//  x=digitalRead(25);
+
+  x=false;
   if (!x) // bila bangun
   { 
     TimeNow = RTCnow();
@@ -180,6 +184,7 @@ delay(200);
     while(!x && !interruptTrigger && (TimeNow<NextAuth-60))  // normal time
     {
         var=0;
+        readString="";
         while (Serial2.available()){ 
               char c= Serial2.read();
               readString += c;}
@@ -206,14 +211,13 @@ delay(200);
               waitfromHP("219"); //Wait until this value / Connect di shindeiru tokimode
               printToOLED("Sudah connect di Shindeiru Toki Mode",1);
               String pkey= queryfromHP();
-             
               if(pkey!="moemoe") // bila moemoe langsung keluar aja 
                 {
                   writeKeyEEPROM(pkey,32,63);
                   var=0;
-                  break;
+                  waitfromHP("moemoe");  
                 }
-             
+              readString="";
               delay(5000);
               break;
             }
@@ -224,38 +228,93 @@ delay(200);
               // Dengan ini tidak mungkin masuk ke while bagian bawah
               break;
             }
-          case 3:
+          case 3: //ModeRegister
             {
-              printToOLED("Now Entering Mode Register",1);
-              String pkNew = randStr(32);
-              Serial2.print(pkNew);
-              waitfromHP("moemoe"); // Cuma nunggu kok
-        
+              printToOLED("Now Entering Mode Register",1); //Welcome message
+              delay(1000);
+              String pkNew = randStr(32); // Generate Random
+              writeKeyEEPROM(pkNew,32,63); // Write new key to Storage
+              writeKeyEEPROM("12345678",10,17); // Default reset PIN when registering
+              printToOLED(pkNew+" is written to key space",1);
+              delay(1000); 
+              Serial2.print(pkNew); //Send pkey to Server
+              String newuname = queryfromHP();   // query username dari user
+              writeKeyEEPROM(newuname,65,77);
+              printToOLED("Username sudah dituliskan :\n"+newuname,1);
+              delay(1000); 
+              waitformoemoe(); // Cuma nunggu kok
               var=0;
               readString="";
-              delay(3000);
+              delay(2000);
               break;
             }
             //
           case 5: //ini untuk input Change PIN
            {
             printToOLED("Now Entering Mode Change PIN",1);
-            Serial2.print("Wallet Siap!");
+           // Serial2.print("Wallet Siap!");
             
             String pinfromHP= queryfromHP();
               if(pinfromHP!="moemoe")
                 {
-                  writeKeyEEPROM(pinfromHP,10,17);
-                  printToOLED(pinfromHP+" is written to PIN space",1);
-                  waitfromHP("moemoe"); // Agar Syncron Clocknya
+                  printToOLED(pinfromHP+" aquired form HP",1);
+                  delay(3000);
+                  String pinAwal = readKey(10,17);
+                    if (pinAwal==pinfromHP) // Bila pin di wallet ama old pin sama,
+                    {
+                      printToOLED("PIN HP DAN DI DALAM SAMA",1); 
+                      Serial2.print("OK");
+                      String newPIN  = queryfromHP();
+                      if(newPIN!="moemoe") // klo moemoe keluar aj
+                      {
+                        writeKeyEEPROM(newPIN,10,17);
+                        printToOLED(newPIN+" berhasil dicetak ke EEPROM ",1);
+                        delay(2000);
+                      }
+                      else
+                      {
+                        break;
+                      }
+
+                    }
+                  else
+                  {
+                    printToOLED("PIN BEDA",1);
+                  }
+                  waitformoemoe(); // 
                 }    
             readString=""; // IF YOU WONDER WHY AFTER EXIT, VAR NOT CHANGE
             var=0;
             break;
            }
             
-          case 6:
-            //
+          case 7: //Menu Cek Balance
+          {
+            printToOLED("Youkoso Cek Balance Mode",1);
+            delay(1000);
+            String unameMode7 = readKey(65,77);
+            printToOLED("Panjang String = "+String(unameMode7.length()),1);
+            delay(1000);
+            Serial2.print(unameMode7); // Kirim ke HP
+            
+            
+            waitformoemoe(); // wait instruction to exit
+            readString="";
+            var=0;
+            break;
+          }
+          case 9: //Menu Send
+          {
+            printToOLED("Youkoso Sending Mode",1);
+            delay(1000);
+            String unameMode9 = readKey(65,77);
+            Serial2.print(unameMode9); // Kirim username ke HP
+            waitformoemoe(); // wait instruction to exit
+            readString="";
+            var=0;
+            break;
+          }
+            
           case 4:
             {
               Serial2.print("Masuk");
@@ -310,7 +369,7 @@ delay(200);
           printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
           delay(2500);
           ///--------------------------------------------------------
-        x=digitalRead(25);
+       // x=digitalRead(25);
         Serial.println("Aku didalam While");
         Serial.println("Waktu sekarang : " + String(TimeNow));
         
@@ -681,12 +740,25 @@ boolean ShindeiruKa()
 void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
 {
    String query = Serial2.readString(); // disuruh query
-   printToOLED("Nilai query saat ini: "+query,1);
+   printToOLED("menunggu "+desiredValue+" dari HP!" ,1);
    delay(1000);
     while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
-     printToOLED("Nilai query saat dalam: "+query,1);
+     printToOLED("menunggu "+desiredValue+" dari HP!" ,1);
+      delay(500);
+    }
+}
+
+void waitformoemoe() //Wait until phone send moemoe
+{
+   String query = Serial2.readString(); // disuruh query
+   printToOLED("Menunggu Moe",1);
+   delay(1000);
+    while(query!="moemoe") // Bila tidak sesuai keiinginam, bakal terus didalam
+    {
+      query=Serial2.readString();
+     printToOLED("Menunggu Moe",1);
       delay(500);
     }
 }
@@ -698,6 +770,8 @@ String queryfromHP() // Menungu respon dari HP
     {
       while(Serial2.available())
       {
+        printToOLED("Nilai query saat ini: "+nilaiString,1);
+        delay(500);
         nilaiString=Serial2.readString();
       }
       
