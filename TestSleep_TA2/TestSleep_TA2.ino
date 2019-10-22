@@ -307,6 +307,14 @@ delay(200);
           case 8: //Menu RestoreSK
           {
             printToOLED("Selamat Datang Mode 8",1);
+            delay(1000);
+            String usernameBaru= queryfromHP(); // Query username baru dari HP
+            writeKeyEEPROM(usernameBaru,65,77); // Write username ke wallet
+            printToOLED("New UNAME writen : "+usernameBaru,1);
+            delay(1000);
+            String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
+            writeKeyEEPROM(secretkeyBaru,32,63); // Write new SKey to wallet
+            printToOLED("Written Secret Key : /n"+secretkeyBaru,1);
             waitformoemoe(); // wait instruction to exit
             readString="";
             var=0;
