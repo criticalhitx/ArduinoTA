@@ -254,7 +254,7 @@ delay(200);
             printToOLED("Now Entering Mode Change PIN",1);
            // Serial2.print("Wallet Siap!");
             
-            String pinfromHP= queryfromHP();
+            String pinfromHP= queryfromHP();//pin dr hp
               if(pinfromHP!="moemoe")
                 {
                   printToOLED(pinfromHP+" aquired form HP",1);
@@ -303,6 +303,16 @@ delay(200);
             var=0;
             break;
           }
+
+          case 8: //Menu RestoreSK
+          {
+            printToOLED("Selamat Datang Mode 8",1);
+            waitformoemoe(); // wait instruction to exit
+            readString="";
+            var=0;
+            break;
+          }
+          
           case 9: //Menu Send
           {
             printToOLED("Youkoso Sending Mode",1);
