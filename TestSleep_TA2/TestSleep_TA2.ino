@@ -201,7 +201,7 @@ delay(200);
           case 1: // Shindeiru Toki -> Saat terlambat masukin pin 1 minggu , maka di menu ini harus disertakan dengan NextAuth yang diupdate senilai TimeStop
             {
               printToOLED("Start Mode Shindeiru Toki",1);
-              String respCodeShindetoki = waitfromHPbongkar(); // nunggu string 3,219,8
+              String respCodeShindetoki = waitfromHPshindeirutoki(); // nunggu string 4,3,219,8
               if (respCodeShindetoki=="219")
               {
                 String unameChk = readKey(65,77);
@@ -221,6 +221,10 @@ delay(200);
               else if(respCodeShindetoki=="8")
               {
                 modeRestoreSK();
+              }
+              else if(respCodeShindetoki=="4")
+              {
+                modeLogin();
               }
  
  //!!!!!!!!!!! IMPORTANT : not only waiting 219, but also waiting for login. Selanjutnya if 219, lewatkan saja , atau bila 4, menunggu informasi login benar baru dipass. 
@@ -261,12 +265,8 @@ delay(200);
             }
           case 4: // Mode Login , user cek dulu ke wallet kesamaan username, bila ok kirim string OK. pada hp dengan handler, bila OK, cek ke server
             {
-              printToOLED("Youkoso mode 4 Login",1);
-              String unamewallet = readKey(65,77);
-              Serial2.print(unamewallet);
+              modeLogin();
               waitformoemoe();
-              var=0;
-              readString="";
               break;
             }
             //
@@ -797,6 +797,21 @@ String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8
     return query;
 }
 
+String waitfromHPshindeirutoki() //Pada mode Shindeiru Toki, menunggu angka 4,219,3,dan 8
+{
+   String query = Serial2.readString(); // disuruh query
+   printToOLED("menunggu respon Shindeiru Toki dari HP!" ,1);
+   delay(1000);
+    while((query!="219")&&(query!="3")&&(query!="8")&&(query!="4")) // Bila tidak sesuai keiinginam, bakal terus didalam
+    {
+      query=Serial2.readString();
+     printToOLED("menunggu respon Shindeiru Toki dari HP! "+query ,1);
+      delay(500);
+    }
+    return query;
+}
+
+
 void waitformoemoe() //Wait until phone send moemoe
 {
    String query = Serial2.readString(); // disuruh query
@@ -875,4 +890,13 @@ void modeRestoreSK() // Mode 8
     printToOLED("Written Secret Key : /n"+secretkeyBaru,1);
     readString="";
     var=0;
+}
+
+void modeLogin() // Mode 4
+{
+    printToOLED("Youkoso mode 4 Login",1);
+    String unamewallet = readKey(65,77);
+    Serial2.print(unamewallet);
+    var=0;
+    readString="";
 }
