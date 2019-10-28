@@ -1,4 +1,3 @@
-
 #include <esp_sleep.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -57,7 +56,7 @@ void setup() {
    if (digitalRead(34)==HIGH)
   {
     writeKeyEEPROM("Omae wa Mou Shindeiru!",32,64);
-    
+    writeKeyEEPROM("qwertyuiopasd",65,77);
   }
   //-------------------------------------------------------
 
@@ -98,59 +97,15 @@ void loop() {
   Serial.println("TimeNow = "+String(TimeNow));//
   Serial.println("TimeStop = "+String(TimeStop));//
   writeKeyEEPROM(String(TimeStop),18,23);
-  NextAuth=stringToInt(readKey(24,29));
+  NextAuth=stringToInt(readKey(24,29)); // next auth 24 to 29
   Serial.println("NextAuth = "+String(NextAuth));//
 
-  if (TimeNow>=NextAuth)
+  if (TimeNow>=NextAuth) // Fail -> Shindeiru TOKI MODE
   {
       writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64);
+      // WAITING FOR 219 // 
   }
-  
- /* while (TimeNow>=NextAuth) //Kasus ini ketika didiamkan walletnya tanpa mau authentikasi. harus masukkan pin dan kunci lagi
-  {
-    Serial.println("Harus Authentikasi nih ceritanya");
-    writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64);
-    printToOLEDmultisize("OOPS!","Terlambat masukin PIN ya?",2,1);
-    delay(2000);
-    
-    printToOLED("Insert PIN NOW\nto recover the wallet!!",1);
-    
-    String lateMode=Serial2.readString();
-    while (lateMode!="5"){
-      lateMode=Serial2.readString();
-    }
-    
-    String lateAuth=Serial2.readString();
-    while (lateAuth==NULL){
-      lateAuth=Serial2.readString();
-    }
-    
-    if (lateAuth==readKey(10,17))
-    {
-      writeKeyEEPROM(String(TimeStop),24,29);
-      NextAuth=stringToInt(readKey(24,29));
-      printToOLED("Selamat!!\nSekarang masukkan Key!!",1);
-       //ThisKeyIsReal!!!ThisKeyIsReal!!!
 
-      String PintokeyMode = Serial2.readString(); // Pengguna disuruh masuk ke mode PIN
-      while (PintokeyMode!="4")
-      {
-        PintokeyMode = Serial2.readString();
-      }
-      
-      String lateKey=Serial2.readString();
-      while(lateKey==NULL)
-      {
-        lateKey=Serial2.readString();
-      }
-      writeKeyEEPROM(lateKey,32,64);//Mengembalikan kunci yang sempat dishindeirukan.
-      printToOLED("Now you can use the wallet!!\nHooray!!!",1);
-      delay(3000);
-    }
-    else
-      printToOLED("PIN salah, coba lagi :D",1);
-    delay(1000);
-  }*/
   ///////////////////////////////////////////////////////////////////////////////////
 attachInterrupt(34,rusak,RISING);
 Serial.println("LewatSiniKah???"); 
@@ -178,11 +133,37 @@ delay(200);
   x=false;
   if (!x) // bila bangun
   { 
-    TimeNow = RTCnow();
-    String NextAuthw = readKey(24,29);
-    NextAuth = stringToInt(NextAuthw);
-    while(!x && !interruptTrigger && (TimeNow<NextAuth-60))  // normal time
+    //writeKeyEEPROM("12345678",10,17); // Flush PIN
+    while(!x && !interruptTrigger)  // normal time
     {
+      //---------- Update variable waktu di awal ----------------
+      TimeNow = RTCnow();
+      String NextAuthw = readKey(24,29);
+      NextAuth = stringToInt(NextAuthw);
+      //---------------------------------------------------------
+       
+       // ----------------Bila Bongkar-----------------------------------------------------
+        if (interruptTrigger) //Menu Bongkar --->> flush username juga
+        {
+            writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
+            writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
+            String x = randStr(8);
+          //  writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+            EEPROM.commit();
+        }
+       // ----------------------------------------------------------------
+       
+       //------------ Masa Tenggang---------------------------------------------------------
+        if((TimeNow<NextAuth)&&(TimeNow>NextAuth-24)&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+        {
+            printToOLED("Insert your PIN before :\n"+converttoRealTime(TimeStop),1);
+            boolean isPinTrue = cekPinMasaTenggang();
+            while (!isPinTrue)
+            {
+              isPinTrue=cekPinMasaTenggang();
+            }
+        }
+        //--------------------------------------------------------------------------------------
         var=0;
         readString="";
         while (Serial2.available()){ 
@@ -193,55 +174,99 @@ delay(200);
         var = readString.toInt();}
         printToOLED("Nilai Var: "+String(var),1);
         delay(500);
-        // bila shinde masuk mode 1
-        boolean shindekah = ShindeiruKa();
         
+        // bila shinde masuk mode 1
+        // Bila bongkar masuk mode 2
+        boolean shindekah = ShindeiruKa();
+        boolean bongkarkah = BongkarKa();
+
+        /// EDIT THIS FOR PROGRAMING DEBUGGING---
+        /// Penentuan mode perusakan kunci-------
         if(shindekah) 
         {
-        var=1;
+          if(bongkarkah)
+          {
+            var=2;
+          }
+          else
+          {
+            var=1;
+          }
         }
+        /// --------------------------------------
         
         //Start of the looping state
         switch(var)
         {
-          case 1: // 死んでいる　プログラム.　この　プログラム　は　まず　login or register or recover SK に　にっています。その後、２１９を待っています。
+          case 1: // Shindeiru Toki -> Saat terlambat masukin pin 1 minggu , maka di menu ini harus disertakan dengan NextAuth yang diupdate senilai TimeStop
             {
               printToOLED("Start Mode Shindeiru Toki",1);
-              /// Do login Program Here ///
-              // ex : wait until login/ register / recover string
-              ////------------------------////
-              String CekModeShinde = Serial2.readString(); // Pengguna disuruh masuk ke mode PIN
+              String respCodeShindetoki = waitfromHPbongkar(); // nunggu string 3,219,8
+              if (respCodeShindetoki=="219")
+              {
+                String unameChk = readKey(65,77);
+                Serial2.print(unameChk); // kirim username ke HP untuk dicocokkan
+                String pkey= queryfromHP();
+                if (pkey!="moemoe")
+                {
+                  printToOLED("VALID",1);
+                  delay(3000);
+                  writeKeyEEPROM(pkey,32,63);
+                }
+              }
+              else if (respCodeShindetoki=="3") // Register mode saat 
+              {
+                modeRegister();
+              }
+              else if(respCodeShindetoki=="8")
+              {
+                modeRestoreSK();
+              }
  
  //!!!!!!!!!!! IMPORTANT : not only waiting 219, but also waiting for login. Selanjutnya if 219, lewatkan saja , atau bila 4, menunggu informasi login benar baru dipass. 
 // Selanjutnya adalah operasi untuk query from HP Secret Key.
-
-
-              waitfromHP("219"); //Wait until this value / Connect di shindeiru tokimode
-              printToOLED("Sudah connect di Shindeiru Toki Mode",1);
-              String pkey= queryfromHP();
-              if(pkey!="moemoe") // bila moemoe langsung keluar aja 
-                {
-                  writeKeyEEPROM(pkey,32,63);
-                  var=0;
-                  waitfromHP("moemoe");  
-                }
+              TimeNow = RTCnow();
+              TimeStop= RTCnext(TimeNow);
+              writeKeyEEPROM(String(TimeStop),24,29);
+              waitformoemoe();
+              var=0;
               readString="";
               delay(5000);
               break;
             }
           case 2://Mode Bongkar
             {
+                printToOLED("Start Mode Bongkar",1);
+                String respCodeBongkar = waitfromHPbongkar(); // nunggu string 219,8
+                if (respCodeBongkar=="3") // Register mode saat 
+                {
+                  modeRegister();
+                }
+                else if(respCodeBongkar=="8")
+                {
+                  modeRestoreSK();
+                }
+                waitformoemoe();
+                var=0;
+                readString="";
+                break;
               // Flush semua isinnya
               // Bisa menunggu mode Register and RecoverSK
-              break;
             }
           case 3: //ModeRegister
             {
               modeRegister();
+              waitformoemoe();
               break;
             }
-          case 4: // Mode Login
+          case 4: // Mode Login , user cek dulu ke wallet kesamaan username, bila ok kirim string OK. pada hp dengan handler, bila OK, cek ke server
             {
+              printToOLED("Youkoso mode 4 Login",1);
+              String unamewallet = readKey(65,77);
+              Serial2.print(unamewallet);
+              waitformoemoe();
+              var=0;
+              readString="";
               break;
             }
             //
@@ -332,6 +357,7 @@ delay(200);
           case 8: //Menu RestoreSK
           {
             modeRestoreSK();
+            waitformoemoe();
             break;
           }
 
@@ -394,27 +420,16 @@ delay(200);
     }
   }
   TimeNow = RTCnow();
- 
-  if((TimeNow<TimeStop)&&!x&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
-  {
-      printToOLED("Insert your PIN before :\n"+converttoRealTime(TimeStop),1);
-      boolean isPinTrue = cekPinMasaTenggang();
-      while (!isPinTrue && TimeNow<TimeStop)
-      {
-        isPinTrue=cekPinMasaTenggang();
-      }
-  } 
+  NextAuth= stringToInt(readKey(24,29));
+
 /*    if (compare) // compare dengan input pada wallet
       //Auth Succeed, TimeStop+=168, break
     else
       //Auth Fail + Omae wa + TimeStop+=168, break
   }*/
   TimeNow = RTCnow();
-  if (interruptTrigger)
-  {
-      writeKeyEEPROM("Omae wa mou shindeiru",32,64);
-      EEPROM.commit();
-  }
+  
+  
 
 Serial.println("Hey Tayo Hey Tayo");
 interruptTrigger=false;
@@ -747,6 +762,14 @@ boolean ShindeiruKa()
     return false;
 }
 
+boolean BongkarKa()
+{
+  if(readKey(65,77)=="qwertyuiopasd")
+    return true;
+  else 
+    return false;
+}
+
 void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
 {
    String query = Serial2.readString(); // disuruh query
@@ -758,6 +781,20 @@ void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
      printToOLED("menunggu "+desiredValue+" dari HP!" ,1);
       delay(500);
     }
+}
+
+String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8 
+{
+   String query = Serial2.readString(); // disuruh query
+   printToOLED("menunggu respon bongkar dari HP!" ,1);
+   delay(1000);
+    while((query!="219")&&(query!="3")&&(query!="8")) // Bila tidak sesuai keiinginam, bakal terus didalam
+    {
+      query=Serial2.readString();
+     printToOLED("menunggu respon bongkar dari HP! "+query ,1);
+      delay(500);
+    }
+    return query;
 }
 
 void waitformoemoe() //Wait until phone send moemoe
@@ -789,6 +826,8 @@ String queryfromHP() // Menungu respon dari HP
     return nilaiString;
 }
 
+
+
 String randStr (int numBytes) // Generate random number fixed size
 {
   int i = 0;
@@ -818,7 +857,6 @@ void modeRegister() // Mode3
     writeKeyEEPROM(newuname,65,77);
     printToOLED("Username sudah dituliskan :\n"+newuname,1);
     delay(1000); 
-    waitformoemoe(); // Cuma nunggu kok
     var=0;
     readString="";
     delay(2000);
@@ -832,10 +870,9 @@ void modeRestoreSK() // Mode 8
     writeKeyEEPROM(usernameBaru,65,77); // Write username ke wallet
     printToOLED("New UNAME writen : "+usernameBaru,1);
     delay(1000);
-    String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
+   String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
     writeKeyEEPROM(secretkeyBaru,32,63); // Write new SKey to wallet
     printToOLED("Written Secret Key : /n"+secretkeyBaru,1);
-    waitformoemoe(); // wait instruction to exit
     readString="";
     var=0;
 }
