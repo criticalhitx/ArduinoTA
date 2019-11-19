@@ -181,6 +181,12 @@ delay(200);
         boolean bongkarkah = BongkarKa();
 
         /// EDIT THIS FOR PROGRAMING DEBUGGING---
+        //---------- Shindeiru bila telat masuk ----------- 
+         if (TimeNow>NextAuth)
+        {
+          writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
+        }
+        //-----------------------
         /// Penentuan mode perusakan kunci-------
         if(shindekah) 
         {
@@ -193,6 +199,7 @@ delay(200);
             var=1;
           }
         }
+   
         /// --------------------------------------
         
         //Start of the looping state
@@ -319,6 +326,7 @@ delay(200);
             String pinfromHP= queryfromHP();//pin dr hp
             printToOLED("Diterima = " +pinfromHP,1);
             //------------------------------------------
+            
             // -------- Buat Cek PIN -------------
             if(pinAsli==pinfromHP)
             {
@@ -344,9 +352,9 @@ delay(200);
           {
             printToOLED("Youkoso Cek Balance Mode",1);
             delay(1000);
+
+            
             String unameMode7 = readKey(65,77);
-            printToOLED("Panjang String = "+String(unameMode7.length()),1);
-            delay(1000);
             Serial2.print(unameMode7); // Kirim ke HP
             waitformoemoe(); // wait instruction to exit
             readString="";
@@ -403,12 +411,18 @@ delay(200);
           TimeStop=RTCnext(TimeNow);
           String uname=readKey(65,77);
           printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
-          delay(2500);
-          ///--------------------------------------------------------
-       // x=digitalRead(25);
-        Serial.println("Aku didalam While");
-        Serial.println("Waktu sekarang : " + String(TimeNow));
-        
+           
+         // ----------------Bila Bongkar-----------------------------------------------------
+        if (interruptTrigger) //Menu Bongkar --->> flush username juga
+        {
+            writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
+            writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
+            String x = randStr(8);
+          //  writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+            EEPROM.commit();
+        }
+       // ----------------------------------------------------------------
+          delay(1500);
         
         
         //// kode di bawah Ini hanya untuk tes, tidak mencerminkan realtime
