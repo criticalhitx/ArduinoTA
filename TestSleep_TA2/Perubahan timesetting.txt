@@ -1,0 +1,53 @@
+
+
+
+Tahun kabisat ad 366 hari. Biasa 365
+Bulan selalu konstant 12. Mulai dari 1!
+Jumlah hari 28 Februari, kabisat 29
+Jumlah hari 30 pada bulan 4,6,9,11
+Jumlah hari 31 pada bulan 1,3,5,7,8,10,12
+
+Rumus waktu skrg :
+
+int Sudah Berapa hari berlalu sejak tahun baru?(Int tgl,bln,thn)
+- is Kabisat? 
+Variabel tanggal lewat (int Bulan, int tgl)
+1 -> 0 + day
+2 -> 31 + day
+3 -> 31+{ifKBS(28/29)} + day
+4 -> 31+{ifKBS(28/29)}+31 + day
+5 -> 31+{ifKBS(28/29)}+31+30 + day
+6 -> 31+{ifKBS(28/29)}+31+30+31 + day
+7 -> 31+{ifKBS(28/29)}+31+30+31+30 + day
+8 -> 31+{ifKBS(28/29)}+31+30+31+30+31 + day
+9 -> 31+{ifKBS(28/29)}+31+30+31+30+31+31 + day
+10-> 31+{ifKBS(28/29)}+31+30+31+30+31+31+30 + day
+11-> 31+{ifKBS(28/29)}+31+30+31+30+31+31+30+31 + day
+12-> 31+{ifKBS(28/29)}+31+30+31+30+31+31+30+31+30 + day
+
+Tahun sudah lewat
+19 -> 1000
+20 -> 1000+365
+21 -> 1000+365+366
+22 -> 1000+365+366+365
+23 -> 1000+365+366+365+365
+24 -> 1000+365+366+365+365+365
+25 -> 1000+365+366+365+365+365+366
+26 -> 1000+365+366+365+365+365+366+365
+
+int DayLewat(int th)
+{
+	int count = 1000;
+	for (i=2020;i<=th;i++)
+	{
+		if(isKabisat(i))
+			count+=366;
+		else
+			count+=365;
+	}
+}
+
+boolean isKabisat(int th)
+{
+	if(
+}

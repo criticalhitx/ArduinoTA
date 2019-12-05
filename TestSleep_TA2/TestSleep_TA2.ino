@@ -75,9 +75,9 @@ void setup() {
   pinMode(23,INPUT_PULLUP);//push up button
   pinMode(13,INPUT_PULLUP); // enter
   pinMode(12,INPUT); // batlev
-  // put your setup code here, to run once:
-  //ThisKeyIsReal!!!ThisKeyIsReal!!!
- // delay(5000);
+  // to return back the time
+  //writeKeyEEPROM("100000",24,29);
+  //-----------------------------------
   Serial.println("Back to Setup");
   
    //-----------Kondisi Bongkar tanpa Power---------------
@@ -166,6 +166,7 @@ delay(200);
     {
       //---------- Update variable waktu di awal ----------------
       TimeNow = RTCnow();
+      TimeStop = RTCnext(TimeNow);
       String NextAuthw = readKey(24,29);
       NextAuth = stringToInt(NextAuthw);
       //---------------------------------------------------------
@@ -176,15 +177,15 @@ delay(200);
             writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
             writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
             String x = randStr(8);
-          //  writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+            writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
             EEPROM.commit();
         }
        // ----------------------------------------------------------------
        
        //------------ Masa Tenggang---------------------------------------------------------
-        if((TimeNow<NextAuth)&&(TimeNow>NextAuth-24)&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+        if((TimeNow<NextAuth)&&(TimeNow>NextAuth-1)&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
         {
-            printToOLED("Insert your PIN before :\n"+converttoRealTime(TimeStop),1);
+            printToOLED("Insert your PIN before this Sunday 12 AM GMT+7",1);
             boolean isPinTrue = cekPinMasaTenggang();
             while (!isPinTrue)
             {
@@ -200,8 +201,8 @@ delay(200);
         
         if (readString.length() > 0)   {  
         var = readString.toInt();}
-        printToOLED("Nilai Var: "+String(var),1);
-        delay(500);
+        //printToOLED("Nilai Var: "+String(var),1);
+        //delay(300);
         
         // bila shinde masuk mode 1
         // Bila bongkar masuk mode 2
@@ -210,7 +211,11 @@ delay(200);
 
         /// EDIT THIS FOR PROGRAMING DEBUGGING---
         //---------- Shindeiru bila telat masuk ----------- 
-         if (TimeNow>NextAuth)
+         if (TimeNow<NextAuth)
+        {
+          
+        }
+        else
         {
           writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
         }
@@ -235,17 +240,18 @@ delay(200);
         {
           case 1: // Shindeiru Toki -> Saat terlambat masukin pin 1 minggu , maka di menu ini harus disertakan dengan NextAuth yang diupdate senilai TimeStop
             {
-              printToOLED("Start Mode Shindeiru Toki",1);
+              printToOLED("**Shindeiru Toki Mode**\nU forgot to enter PIN",1);
+              delay(1500);
               String respCodeShindetoki = waitfromHPshindeirutoki(); // nunggu string 4,3,219,8
               if (respCodeShindetoki=="219")
               {
                 String unameChk = readKey(65,77);
                 Serial2.print(unameChk); // kirim username ke HP untuk dicocokkan
-                String pkey= queryfromHP();
+                String pkey= queryfromHPwithmessage("Verify the secret key first, then insert it");
                 if (pkey!="moemoe")
                 {
                   printToOLED("VALID",1);
-                  delay(3000);
+                  delay(1000);
                   writeKeyEEPROM(pkey,32,63);
                 }
               }
@@ -260,17 +266,34 @@ delay(200);
               else if(respCodeShindetoki=="4")
               {
                 modeLogin();
+                //-------------- Must Enter Shindeiru Toki ------------- //
+                printToOLED("**Shindeiru Toki Mode**\nU forgot to enter PIN",1);
+                  waitfromHPwithmessage("219","Now please go to Shindeiru Toki Mode"); // nunggu string 219
+                  String unameChk = readKey(65,77);
+                  Serial2.print(unameChk); // kirim username ke HP untuk dicocokkan
+                  String pkey= queryfromHPwithmessage("Verify the secret key first, then insert it");
+                  if (pkey!="moemoe")
+                  {
+                    writeKeyEEPROM(pkey,32,63);
+                    printToOLED("Recovered",1);
+                    delay(1000);
+                  }
               }
  
  //!!!!!!!!!!! IMPORTANT : not only waiting 219, but also waiting for login. Selanjutnya if 219, lewatkan saja , atau bila 4, menunggu informasi login benar baru dipass. 
 // Selanjutnya adalah operasi untuk query from HP Secret Key.
-              TimeNow = RTCnow();
-              TimeStop= RTCnext(TimeNow);
-              writeKeyEEPROM(String(TimeStop),24,29);
+              if(EEPROM.read(32)!=79) // Bila tidak shindeiru lagi, update variabel nextStop
+              {
+                TimeNow = RTCnow();
+                TimeStop= RTCnext(TimeNow);
+                writeKeyEEPROM(String(TimeStop),24,29);
+                delay(1000);
+              }
+              
               waitformoemoe();
               var=0;
               readString="";
-              delay(5000);
+              delay(1000);
               break;
             }
           case 2://Mode Bongkar
@@ -305,7 +328,7 @@ delay(200);
             //
           case 5: //ini untuk input Change PIN
            {
-            printToOLED("**CHANGE PIN MODE**\nPlease enter your old PIN",1);
+            printToOLED("**CHANGE PIN MODE**\n\nPlease enter your old PIN",1);
      
             String pinfromHP= queryfromHP();//pin dr hp
               if(pinfromHP!="moemoe")
@@ -313,7 +336,7 @@ delay(200);
                   String pinAwal = readKey(10,17);
                     if (pinAwal==pinfromHP) // Bila pin di wallet ama old pin sama,
                     {
-                      printToOLED("PIN verified!!\nNow enter new PIN!",1); 
+                      printToOLED("PIN verified!!\n\nNow enter new PIN!",1); 
                       Serial2.print("OK");
                       String newPIN  = queryfromHP();
                       if(newPIN!="moemoe") // klo moemoe keluar aj
@@ -343,7 +366,7 @@ delay(200);
           //OPT 2 Receive -> uname dan stealthkey dikirim sekaligus, dipilah2 dijava
           case 6: // Menu Receive
           {
-            printToOLED("Receive Mode ",1);
+            printToOLED("Receive Mode\n\nPlease enter your PIN!",1);
             //---------- Buat Baca PIN ---------------------------------
             String pinAsli = readKey(10,17);
             String pinfromHP= queryfromHP();//pin dr hp
@@ -359,7 +382,7 @@ delay(200);
               String myStealth = SHA256(mySecKey+randKey);
               String sendforcheck = randKey + "#" + uname;
               Serial2.print(sendforcheck);
-              printToOLED(myStealth,1);
+              printToOLED("Generated Stealth Address:\n"+myStealth,1);
               waitformoemoenooled();
              
             }
@@ -453,20 +476,18 @@ delay(200);
             } 
         }
         DateTime test = rtc.now();
-       String detik = String(test.hour())+":"+ String(test.minute())+":"+ String(test.second());
+        String detik = String(test.hour())+":"+ String(test.minute())+":"+ String(test.second());
         String tanggal = String(test.day())+"-"+ String(test.month())+"-"+ String(test.year());
         
           /// ----- Code Below is to Set Main Menu Mode on OLED ----------
           String privatekey = readKey(32,64);
-          Serial.println("Private Key : "+privatekey);
-          printToOLEDtriple(detik,tanggal,privatekey,2,1,1);
-          delay(1000);
-          
+          String unamex = readKey(65,77);
+          //Serial.println("Private Key : "+privatekey);
+          printToOLEDquad(detik,tanggal,unamex,privatekey,2,1,1,1);
           TimeNow=RTCnow();
           TimeStop=RTCnext(TimeNow);
           String uname=readKey(65,77);
-          printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
-           
+          //printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
          // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
         {
@@ -477,7 +498,7 @@ delay(200);
             EEPROM.commit();
         }
        // ----------------------------------------------------------------
-          delay(1500);
+          delay(1000);
         
         //// kode di bawah Ini hanya untuk tes, tidak mencerminkan realtime
          /////////////////////////////////////////////////////////////////////
@@ -532,32 +553,100 @@ void print_wakeup_reason(){
     default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
   }
 }
-
+    //DateTime now = rtc.now();
+    //int hasil = (now.year()-2000)*11*30*24 + (now.month()-1)*30*24 + (now.day()-1)*24 + now.hour(); // Tidak ada tanggal 0 dan bulan 0
+//--------------------------------------BEGINNING OF TIMIMG SECTION ------------------------------//
 int RTCnow()
 {
-    DateTime now = rtc.now();
-    int hasil = (now.year()-2000)*12*31*24 + now.month()*31*24 + now.day()*24 + now.hour();
-    return hasil;
+  DateTime now = rtc.now();
+  int hari=now.day();
+  int bulan=now.month();
+  int tahun=now.year();
+  
+  int YTDcount = DayYTD(hari,bulan,tahun);
+  int TahunBerlalu= DayLewat(tahun);
+  int YTDtotal = YTDcount+TahunBerlalu;
+  return YTDtotal;
 }
 
-int RTCnext(int nowRTC)
+int DayYTD(int hr,int bln,int th)
 {
-    int waktuMula = (2019-2000)*12*31*24 + 8*31*24 + 25*24 + 0; //176184 ->176352 ->176520
-   // Serial.println("BasePoint Hari minggu : " + String(waktuMula));
-    DateTime now = rtc.now();
-    while(waktuMula<=nowRTC)
-    {
-      waktuMula+=7*24;
-    }
-  return waktuMula;
+  boolean kab= isKabisat(th);
+  int febDay;
+  if(kab)
+    febDay=29;
+  else
+    febDay=28;
+  //-----------------------------//
+  if(bln==1)
+    return hr;
+  else if(bln==2)
+    return 31+hr;
+  else if(bln==3)
+    return 31+febDay+hr;
+  else if(bln==4)
+    return 31+febDay+31+hr;
+  else if(bln==5)
+    return 31+febDay+31+30+hr;
+  else if(bln==6)
+    return 31+febDay+31+30+31+hr;
+  else if(bln==7)
+    return 31+febDay+31+30+31+30+hr;
+  else if(bln==8)
+    return 31+febDay+31+30+31+30+31+hr;
+  else if(bln==9)
+    return 31+febDay+31+30+31+30+31+31+hr;
+  else if(bln==10)
+    return 31+febDay+31+30+31+30+31+31+30+hr;
+  else if(bln==11)
+    return 31+febDay+31+30+31+30+31+31+30+31+hr;
+  else if(bln==12)
+    return 31+febDay+31+30+31+30+31+31+30+31+30+hr;
 }
+
+int DayLewat(int th)
+{
+  int count = 100000;
+  for (int i=2019;i<th;i++)
+  {
+    if(isKabisat(i))
+      count+=366;
+    else
+      count+=365;
+  }
+  return count;
+}
+
+boolean isKabisat(int th)
+{
+  if(th%4==0)
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+int RTCnext(int rtcnow)
+{
+  int x=100335; // Nilai awal
+  while(x<=rtcnow)
+  {
+    x+=7;
+  }
+  return x;
+}
+
+//-----------------------------END OF TIMING SECTION---------------------------------------------------//
 
 String converttoRealTime(int time) // hanya sampai jam saja.
 {
-  int year = (time/(12*31*24))+2000;
-  int month = (time-((year-2000)*12*31*24))/(31*24);
-  int day = (time-((year-2000)*12*31*24)-(month*31*24))/(24);
-  int hour = (time-((year-2000)*12*31*24)-(month*31*24) -(day*24));
+  int year = (time/(11*31*24))+2000;
+  int month = ((time-((year-2000)*11*31*24))/(31*24))+1;
+  int day = (time-((year-2000)*11*31*24)-(month*31*24))/(24);
+  int hour = (time-((year-2000)*11*31*24)-(month*31*24) -(day*24));
   return (String(day) + "-" + String(month) + "-" + String(year) +"\n"+ String(hour) + " o'clock");
 }
 
@@ -767,14 +856,14 @@ boolean cekPinMasaTenggang ()
               }
              Serial.println("Pin yang anda masukkan= " +kalimat);
              if(kalimat==readKey(10,17))
-               {TimeStop+=168;
+               {TimeStop+=7;
                 writeKeyEEPROM(String(TimeStop),24,29);
-                printToOLEDmultisize("SUCCEED","New Deadline:\n "+converttoRealTime(TimeStop),1,1);
-               delay(3000);
+                printToOLEDmultisize("SUCCEED","New Deadline : Sunday Next Week",1,1);
+               delay(2000);
                return true;}
              else
                {printToOLEDmultisize("FAIL","Please Try Again",1,1);
-               delay(3000);
+               delay(2000);
                return false;}
 }
 
@@ -846,6 +935,32 @@ void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
     }
 }
 
+void waitfromHPwithmessage (String desiredValue, String message) //Wait until phone send desidedvalue
+{
+   String query = Serial2.readString(); // disuruh query
+   printToOLED(message,1);
+   delay(500);
+    while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
+    {
+      query=Serial2.readString();
+     printToOLED(message,1);
+      delay(500);
+    }
+}
+
+void waitfromHPmodified (String desiredValue, String message) //Wait until phone send desidedvalue
+{
+   String query = Serial2.readString(); // disuruh query
+   printToOLED(message,1);
+   delay(500);
+    while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
+    {
+      query=Serial2.readString();
+     printToOLED(message,1);
+      delay(500);
+    }
+}
+
 String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8 
 {
    String query = Serial2.readString(); // disuruh query
@@ -862,12 +977,12 @@ String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8
 String waitfromHPshindeirutoki() //Pada mode Shindeiru Toki, menunggu angka 4,219,3,dan 8
 {
    String query = Serial2.readString(); // disuruh query
-   printToOLED("menunggu respon Shindeiru Toki dari HP!" ,1);
+   printToOLED("Please go to Shindeiru Toki to recover\n Other options:\n Register, RecoverSK" ,1);
    delay(1000);
     while((query!="219")&&(query!="3")&&(query!="8")&&(query!="4")) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
-     printToOLED("menunggu respon Shindeiru Toki dari HP! "+query ,1);
+      printToOLED("Please go to Shindeiru Toki to recover\n Other options:\n Register, RecoverSK" ,1);
       delay(500);
     }
     return query;
@@ -882,7 +997,7 @@ void waitformoemoe() //Wait until phone send moemoe
     while(query!="moemoe") // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
-     printToOLEDmultisize("Do your task,","Then press the logo button to exit",1,1);
+     printToOLEDmultisize("Do your task first,\n","Then press the logo button to exit",1,1);
       delay(500);
     }
 }
@@ -905,7 +1020,22 @@ String queryfromHP() // Menungu respon dari HP
     {
       while(Serial2.available())
       {
-       // printToOLED("Nilai query saat ini: "+nilaiString,1);
+        delay(500);
+        nilaiString=Serial2.readString();
+      }
+      
+    }
+    return nilaiString;
+}
+
+String queryfromHPwithmessage(String message) // Menungu respon dari HP
+{
+    printToOLED(message,1);
+    String nilaiString;
+    while(nilaiString==NULL)
+    {
+      while(Serial2.available())
+      {
         delay(500);
         nilaiString=Serial2.readString();
       }
@@ -938,7 +1068,6 @@ void modeRegister() // Mode3
     String pkNew = randStr(32); // Generate Random
     writeKeyEEPROM(pkNew,32,63); // Write new key to Storage
     writeKeyEEPROM("12345678",10,17); // Default reset PIN when registering
-    delay(1000); 
     Serial2.print(pkNew); //Send pkey to Server
     String newuname = queryfromHP();   // query username dari user
     writeKeyEEPROM(newuname,65,77);
@@ -950,15 +1079,15 @@ void modeRegister() // Mode3
 
 void modeRestoreSK() // Mode 8
 {
-    printToOLED("**Mode RestoreSK**",1);
+    printToOLED("**Mode Restore with SecretKey**",1);
     delay(1000);
     String usernameBaru= queryfromHP(); // Query username baru dari HP
     writeKeyEEPROM(usernameBaru,65,77); // Write username ke wallet
-    printToOLED("New UNAME writen : "+usernameBaru,1);
+    printToOLED("Username has been writen!!",1);
     delay(1000);
-   String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
+    String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
     writeKeyEEPROM(secretkeyBaru,32,63); // Write new SKey to wallet
-    printToOLED("Written Secret Key : \n"+secretkeyBaru,1);
+    printToOLED("Username has been writen!!\n\nSecretKey has been writen",1);
     writeKeyEEPROM("12345678",10,17);
     readString="";
     var=0;
@@ -971,7 +1100,7 @@ void modeLogin() // Mode 4
     Serial2.print(unamewallet);
     var=0;
     readString="";
-    waitfromHP("true");
+    waitfromHPmodified("true","Waiting for Login Information");
 }
 
 //------------------------------- START OF SHA FUNCTION -----------------------------------------------------------//
