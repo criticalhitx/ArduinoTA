@@ -1,0 +1,10 @@
+Done with while
+1.waitfromHPshindeirutoki()
+2.waitfromHPbongkar()
+3.waitformoemoe()
+4.waitfromHPmodified()
+5.waitformoemoenooled()
+6.queryfromHP()
+7.queryfromHPwithmessage()
+8.waitfromHP()
+9.waitfromHPwithmessage()

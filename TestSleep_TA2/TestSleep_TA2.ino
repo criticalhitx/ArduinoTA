@@ -183,11 +183,11 @@ delay(200);
        // ----------------------------------------------------------------
        
        //------------ Masa Tenggang---------------------------------------------------------
-        if((TimeNow<NextAuth)&&(TimeNow>NextAuth-1)&&!interruptTrigger) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+        if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-2)&&(!ShindeiruKa)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
         {
-            printToOLED("Insert your PIN before this Sunday 12 AM GMT+7",1);
+            printToOLED("Insert your PIN\nbefore \n\n Sunday 12 AM",1);
             boolean isPinTrue = cekPinMasaTenggang();
-            while (!isPinTrue)
+            while ((!isPinTrue)&&(!interruptTrigger))
             {
               isPinTrue=cekPinMasaTenggang();
             }
@@ -240,7 +240,7 @@ delay(200);
         {
           case 1: // Shindeiru Toki -> Saat terlambat masukin pin 1 minggu , maka di menu ini harus disertakan dengan NextAuth yang diupdate senilai TimeStop
             {
-              printToOLED("**Shindeiru Toki Mode**\nU forgot to enter PIN",1);
+              printToOLED("**Shindeiru Toki Mode**\n\nYou forgot to enter PIN",1);
               delay(1500);
               String respCodeShindetoki = waitfromHPshindeirutoki(); // nunggu string 4,3,219,8
               if (respCodeShindetoki=="219")
@@ -307,6 +307,15 @@ delay(200);
                 {
                   modeRestoreSK();
                 }
+            
+             if(EEPROM.read(32)!=79) // Bila tidak shindeiru lagi, update variabel interuptTrigger
+              {
+                TimeNow = RTCnow();
+                TimeStop= RTCnext(TimeNow);
+                writeKeyEEPROM(String(TimeStop),24,29);
+                interruptTrigger=false;
+              }
+                
                 waitformoemoe();
                 var=0;
                 readString="";
@@ -318,6 +327,7 @@ delay(200);
             {
               modeRegister();
               waitformoemoe();
+              interruptTrigger=false;
               break;
             }
           case 4: // Mode Login , user cek dulu ke wallet kesamaan username, bila ok kirim string OK. pada hp dengan handler, bila OK, cek ke server
@@ -431,6 +441,7 @@ delay(200);
           case 8: //Menu RestoreSK
           {
             modeRestoreSK();
+            interruptTrigger=false;
             waitformoemoe();
             break;
           }
@@ -505,21 +516,17 @@ delay(200);
 
     }
   }
-  TimeNow = RTCnow();
-  NextAuth= stringToInt(readKey(24,29));
-
-/*    if (compare) // compare dengan input pada wallet
-      //Auth Succeed, TimeStop+=168, break
-    else
-      //Auth Fail + Omae wa + TimeStop+=168, break
-  }*/
-  TimeNow = RTCnow();
-  
-  
-
-Serial.println("Hey Tayo Hey Tayo");
+// ----------------Bila Bongkar-----------------------------------------------------
+if (interruptTrigger) //Menu Bongkar --->> flush username juga
+{
+    writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
+    writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
+    String x = randStr(8);
+    writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+    EEPROM.commit();
+}
+// ----------------------------------------------------------------
 interruptTrigger=false;
-delay(1000);
 
 }
 
@@ -835,11 +842,11 @@ boolean cekPinMasaTenggang ()
       cetak="0";
        kalimat="";
        enter=false;
-             while(count2<8)
+             while((count2<8)&&(!interruptTrigger))
               {
                attachInterrupt(23,tambah,RISING);
                attachInterrupt(13,pindahdigit,RISING);
-                 while(!enter && count2<8) //Saat enter keluar, loop sudah true
+                 while((!enter) && (count2<8) && (!interruptTrigger)) //Saat enter keluar, loop sudah true
                  {
                   delay(500);
                  }
@@ -858,11 +865,11 @@ boolean cekPinMasaTenggang ()
              if(kalimat==readKey(10,17))
                {TimeStop+=7;
                 writeKeyEEPROM(String(TimeStop),24,29);
-                printToOLEDmultisize("SUCCEED","New Deadline : Sunday Next Week",1,1);
+                printToOLEDmultisize("SUCCEED\n","New Deadline :\nSunday Next Week",1,1);
                delay(2000);
                return true;}
              else
-               {printToOLEDmultisize("FAIL","Please Try Again",1,1);
+               {printToOLEDmultisize("FAIL\n","Please Try Again",1,1);
                delay(2000);
                return false;}
 }
@@ -927,7 +934,7 @@ void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
    String query = Serial2.readString(); // disuruh query
    printToOLED("Now Waiting..." ,1);
    delay(500);
-    while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
+    while((query!=desiredValue)&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
      printToOLED("Now Waiting...",1);
@@ -940,7 +947,7 @@ void waitfromHPwithmessage (String desiredValue, String message) //Wait until ph
    String query = Serial2.readString(); // disuruh query
    printToOLED(message,1);
    delay(500);
-    while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
+    while((query!=desiredValue)&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
      printToOLED(message,1);
@@ -953,7 +960,7 @@ void waitfromHPmodified (String desiredValue, String message) //Wait until phone
    String query = Serial2.readString(); // disuruh query
    printToOLED(message,1);
    delay(500);
-    while(query!=desiredValue) // Bila tidak sesuai keiinginam, bakal terus didalam
+    while(query!=desiredValue&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
      printToOLED(message,1);
@@ -966,7 +973,7 @@ String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8
    String query = Serial2.readString(); // disuruh query
    printToOLEDquad("Your wallet is broken!!","Option Available:","*Register new Wallet","*Recover w/ Secret Key",1,1,1,1);
    delay(1000);
-    while((query!="219")&&(query!="3")&&(query!="8")) // Bila tidak sesuai keiinginam, bakal terus didalam
+    while((query!="219")&&(query!="3")&&(query!="8")&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
       delay(500);
@@ -977,12 +984,12 @@ String waitfromHPbongkar() //Pada mode bongkar, menunggu angka 219,3, dan 8
 String waitfromHPshindeirutoki() //Pada mode Shindeiru Toki, menunggu angka 4,219,3,dan 8
 {
    String query = Serial2.readString(); // disuruh query
-   printToOLED("Please go to Shindeiru Toki to recover\n Other options:\n Register, RecoverSK" ,1);
+   printToOLED("Please go to Shindeiru Toki to recover\n\nOther options:\nRegister, RecoverSK" ,1);
    delay(1000);
-    while((query!="219")&&(query!="3")&&(query!="8")&&(query!="4")) // Bila tidak sesuai keiinginam, bakal terus didalam
+    while((query!="219")&&(query!="3")&&(query!="8")&&(query!="4")&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
-      printToOLED("Please go to Shindeiru Toki to recover\n Other options:\n Register, RecoverSK" ,1);
+      printToOLED("Please go to Shindeiru Toki to recover\n\nOther options:\nRegister, RecoverSK" ,1);
       delay(500);
     }
     return query;
@@ -994,7 +1001,7 @@ void waitformoemoe() //Wait until phone send moemoe
    String query = Serial2.readString(); // disuruh query
    printToOLEDmultisize("Do your task first,\n","Then press the logo button to exit",1,1);
    delay(500);
-    while(query!="moemoe") // Bila tidak sesuai keiinginam, bakal terus didalam
+    while(query!="moemoe"&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
      printToOLEDmultisize("Do your task first,\n","Then press the logo button to exit",1,1);
@@ -1006,7 +1013,7 @@ void waitformoemoenooled() //Wait until phone send moemoe
 {
    String query = Serial2.readString(); // disuruh query
    delay(500);
-    while(query!="moemoe") // Bila tidak sesuai keiinginam, bakal terus didalam
+    while((query!="moemoe")&&(!interruptTrigger)) // Bila tidak sesuai keiinginam, bakal terus didalam
     {
       query=Serial2.readString();
       delay(500);
@@ -1016,9 +1023,9 @@ void waitformoemoenooled() //Wait until phone send moemoe
 String queryfromHP() // Menungu respon dari HP
 {
     String nilaiString;
-    while(nilaiString==NULL)
+    while((nilaiString==NULL)&&(!interruptTrigger))
     {
-      while(Serial2.available())
+      while((Serial2.available())&&(!interruptTrigger))
       {
         delay(500);
         nilaiString=Serial2.readString();
@@ -1032,14 +1039,13 @@ String queryfromHPwithmessage(String message) // Menungu respon dari HP
 {
     printToOLED(message,1);
     String nilaiString;
-    while(nilaiString==NULL)
+    while((nilaiString==NULL)&&(!interruptTrigger))
     {
-      while(Serial2.available())
+      while((Serial2.available())&&(!interruptTrigger))
       {
         delay(500);
         nilaiString=Serial2.readString();
       }
-      
     }
     return nilaiString;
 }
