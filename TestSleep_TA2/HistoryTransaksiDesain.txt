@@ -1,0 +1,6 @@
+TransferOut= 
+-OTP penerima, ID, jumlah
+
+get username penerima
+Transfer IN=
+- Username, ID, Jumlah

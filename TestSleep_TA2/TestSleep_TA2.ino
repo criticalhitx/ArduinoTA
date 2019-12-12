@@ -183,7 +183,7 @@ delay(200);
        // ----------------------------------------------------------------
        
        //------------ Masa Tenggang---------------------------------------------------------
-        if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-2)&&(!ShindeiruKa)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+        if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-2)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
         {
             printToOLED("Insert your PIN\nbefore \n\n Sunday 12 AM",1);
             boolean isPinTrue = cekPinMasaTenggang();
@@ -476,10 +476,57 @@ delay(200);
             var=0;
             break;
           }
-          //OPT 1 "Recieve" -> String dikirim dri wallet 2 buah yaitu Stealth address dan USERNAME.. , sebelum itu wallet ngirim PIN langsung ke HP, dicocokkan di HP.
-          // bila PIN sama, nullkan response kembali dan kirim sinyal OK ke wallet.
+          case 11: //HistoryIn Mode
+          {
+            printToOLED("**History In Mode**\n\nPlease enter your PIN to enter this mode!!",1);
+            Serial2.print("Connected Broh");
+            delay(1000);
+            
+            String pinAsli = readKey(10,17);
+            String pinfromHP= queryfromHP();//pin dr hp
+            if(pinAsli==pinfromHP)
+            {
+              printToOLED("PIN BENAR",1);
+              String unameMode11 = readKey(65,77);
+              Serial2.print(unameMode11); // Kirim username ke HP
+            }
+            else
+            {
+              printToOLED("PIN SALAH",1);
+              Serial2.print("Rejected");
+            }
 
-          //OPT 2 Receive -> uname dan stealthkey dikirim sekaligus, dipilah2 dijava
+            
+            waitformoemoe(); // wait instruction to exit
+            readString="";
+            var=0;
+            break;
+          }
+          case 12:
+            {
+            printToOLED("**History Out Mode**\n\nPlease enter your PIN to enter this mode!!",1);
+            delay(1000);
+            // Masukkan PIN dri HP
+            String pinAsli = readKey(10,17);
+            String pinfromHP= queryfromHP();//pin dr hp
+            if(pinAsli==pinfromHP)
+            {
+              printToOLED("PIN BENAR",1);
+              String unameMode12 = readKey(65,77);
+              Serial2.print(unameMode12); // Kirim username ke HP
+            }
+            else
+            {
+              printToOLED("PIN SALAH",1);
+              Serial2.print("Rejected");
+            }
+
+            
+            waitformoemoe(); // wait instruction to exit
+            readString="";
+            var=0;
+            break;
+          }
  
           default:
             {
@@ -498,7 +545,9 @@ delay(200);
           TimeNow=RTCnow();
           TimeStop=RTCnext(TimeNow);
           String uname=readKey(65,77);
-          //printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
+
+          delay(500);
+          printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
          // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
         {
