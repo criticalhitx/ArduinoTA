@@ -131,7 +131,6 @@ void loop() {
   if (TimeNow>=NextAuth) // Fail -> Shindeiru TOKI MODE
   {
       writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64);
-      // WAITING FOR 219 // 
   }
 
   ///////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +182,7 @@ delay(200);
        // ----------------------------------------------------------------
        
        //------------ Masa Tenggang---------------------------------------------------------
-        if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-2)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
+        if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-1)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
         {
             printToOLED("Insert your PIN\nbefore \n\n Sunday 12 AM",1);
             boolean isPinTrue = cekPinMasaTenggang();
