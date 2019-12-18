@@ -8,7 +8,7 @@ void setup() {
  Wire.begin();
  rtc.begin();
 Serial.begin(115200);
-rtc.adjust(DateTime(2019, 10, 22, 18, 36, 0));
+rtc.adjust(DateTime(2019, 12, 18, 18, 40, 0));
 
 }
 

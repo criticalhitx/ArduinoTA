@@ -179,16 +179,25 @@ delay(200);
             writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
             EEPROM.commit();
         }
-       // ----------------------------------------------------------------
-       
+       // ---------------------------------------------------------------
+  
        //------------ Masa Tenggang---------------------------------------------------------
         if((TimeNow<NextAuth)&&(TimeNow>=NextAuth-1)) // nah akan masuk fungsi ini bila pin belum dimasukkan via smartphone.
         {
+            boolean cox = ShindeiruKa();
+            if(!cox)
+            {
             printToOLED("Insert your PIN\nbefore \n\n Sunday 12 AM",1);
             boolean isPinTrue = cekPinMasaTenggang();
-            while ((!isPinTrue)&&(!interruptTrigger))
+              while ((!isPinTrue)&&(!interruptTrigger))
+              {
+                isPinTrue=cekPinMasaTenggang();
+              }
+            }
+            else
             {
-              isPinTrue=cekPinMasaTenggang();
+              printToOLED("WALLET UNUSABLE",1);
+              delay(400);
             }
         }
         //--------------------------------------------------------------------------------------
@@ -327,6 +336,10 @@ delay(200);
               modeRegister();
               waitformoemoe();
               interruptTrigger=false;
+                
+               TimeNow = RTCnow();
+               TimeStop= RTCnext(TimeNow);
+               writeKeyEEPROM(String(TimeStop),24,29);
               break;
             }
           case 4: // Mode Login , user cek dulu ke wallet kesamaan username, bila ok kirim string OK. pada hp dengan handler, bila OK, cek ke server
@@ -441,6 +454,9 @@ delay(200);
           {
             modeRestoreSK();
             interruptTrigger=false;
+                TimeNow = RTCnow();
+                TimeStop= RTCnext(TimeNow);
+                writeKeyEEPROM(String(TimeStop),24,29);
             waitformoemoe();
             break;
           }
@@ -540,13 +556,14 @@ delay(200);
           String privatekey = readKey(32,64);
           String unamex = readKey(65,77);
           //Serial.println("Private Key : "+privatekey);
-          printToOLEDquad(detik,tanggal,unamex,privatekey,2,1,1,1);
+          printToOLEDtriple(detik,tanggal,"\nS-KEY",2,1,1);
           TimeNow=RTCnow();
           TimeStop=RTCnext(TimeNow);
           String uname=readKey(65,77);
 
-          delay(500);
+          delay(700);
           printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
+          //delay(700);
          // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
         {
