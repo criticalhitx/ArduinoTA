@@ -334,12 +334,7 @@ delay(200);
           case 3: //ModeRegister
             {
               modeRegister();
-              waitformoemoe();
-              interruptTrigger=false;
-                
-               TimeNow = RTCnow();
-               TimeStop= RTCnext(TimeNow);
-               writeKeyEEPROM(String(TimeStop),24,29);
+              
               break;
             }
           case 4: // Mode Login , user cek dulu ke wallet kesamaan username, bila ok kirim string OK. pada hp dengan handler, bila OK, cek ke server
@@ -1136,16 +1131,33 @@ void modeRegister() // Mode3
 {
    printToOLED("Register Mode",1); //Welcome message
     delay(1000);
-    String pkNew = randStr(32); // Generate Random
+    String randKey = randStr(32); // Generate Random
+    String normalized = String(RTCnow());
+    String pk1 = SHA256(normalized+randKey);
+    String pkNew;
+    for(int i=0;i<32;i++)
+    {
+      pkNew+=pk1[i];
+    }
     writeKeyEEPROM(pkNew,32,63); // Write new key to Storage
+    Serial2.print(randKey);
+    printToOLED("Nilai Secret Key: \n" +pkNew,1);
+    //--------------------
     writeKeyEEPROM("12345678",10,17); // Default reset PIN when registering
-    Serial2.print(pkNew); //Send pkey to Server
     String newuname = queryfromHP();   // query username dari user
     writeKeyEEPROM(newuname,65,77);
-    printToOLEDmultisize("Register Success...","Please wait...",1,1);
+    
+    printToOLEDmultisize("Register Success...\n",pkNew+"\nPress Logo Button To Exit",1,1);
+    waitformoemoenooled();
+             
+              interruptTrigger=false;
+              TimeNow = RTCnow();
+              TimeStop= RTCnext(TimeNow);
+              writeKeyEEPROM(String(TimeStop),24,29);
+    
     var=0;
     readString="";
-    delay(3000);
+    delay(1000);
   }
 
 void modeRestoreSK() // Mode 8
