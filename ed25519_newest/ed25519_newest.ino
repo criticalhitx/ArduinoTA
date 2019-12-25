@@ -81,58 +81,6 @@ String getPublicKey()
     return hasil;
 }
 
-/*
-void testDH()
-{
-    static uint8_t alice_k[32];
-    static uint8_t alice_f[32];
-    static uint8_t bob_k[32];
-    static uint8_t bob_f[32];
-
-    Serial.println("Diffie-Hellman key exchange:");
-    Serial.print("Generate random k/f for Alice ... ");
-    Serial.flush();
-    unsigned long start = micros();
-    Curve25519::dh1(alice_k, alice_f);
-    unsigned long elapsed = micros() - start;
-    Serial.print("elapsed ");
-    Serial.print(elapsed);
-    Serial.println(" us");
-
-    Serial.print("Generate random k/f for Bob ... ");
-    Serial.flush();
-    start = micros();
-    Curve25519::dh1(bob_k, bob_f);
-    elapsed = micros() - start;
-    Serial.print("elapsed ");
-    Serial.print(elapsed);
-    Serial.println(" us");
-
-    Serial.print("Generate shared secret for Alice ... ");
-    Serial.flush();
-    start = micros();
-    Curve25519::dh2(bob_k, alice_f);
-    elapsed = micros() - start;
-    Serial.print("elapsed ");
-    Serial.print(elapsed);
-    Serial.println(" us");
-
-    Serial.print("Generate shared secret for Bob ... ");
-    Serial.flush();
-    start = micros();
-    Curve25519::dh2(alice_k, bob_f);
-    elapsed = micros() - start;
-    Serial.print("elapsed ");
-    Serial.print(elapsed);
-    Serial.println(" us");
-
-    Serial.print("Check that the shared secrets match ... ");
-    if (memcmp(alice_k, bob_k, 32) == 0)
-        Serial.println("ok");
-    else
-        Serial.println("failed");
-}*/
-
 String readKey (int startadd, int untiladd)
 {
   String key;

@@ -1,3 +1,11 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+/* #define ED25519_DLL */
+#include "src/ed25519.h"
+#include "src/ge.h"
+#include "src/sc.h"
+//------------------------
 #include <esp_sleep.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -34,6 +42,7 @@ int var=0;
 int count2;
 int baterai;
 int NextAuth;
+unsigned char seeds[32];
 
 //------------------------------------- START OF SHA DECLARATION-----------------------------------------------//
 char hex[256];
@@ -1132,30 +1141,21 @@ String randStr (int numBytes) // Generate random number fixed size
     return randString;
 }
 
-
-////////////////// CODE BELOW ARE MODE SHORTCUT /////////////////////////////
-
 void modeRegister() // Mode3
 {
-   printToOLED("Register Mode",1); //Welcome message
+    printToOLED("Register Mode",1); //Welcome message
     delay(1000);
-    String randKey = randStr(32); // Generate Random
-    String normalized = String(RTCnow());
-    String pk1 = SHA256(normalized+randKey);
-    String pkNew;
-    for(int i=0;i<32;i++)
-    {
-      pkNew+=pk1[i];
-    }
-    writeKeyEEPROM(pkNew,32,63); // Write new key to Storage
-    Serial2.print(randKey);
-    printToOLED("Nilai Secret Key: \n" +pkNew,1);
+    String pubKey = GenerateAndPutPrivateKeyAndReturnPublicKey(); //Create and Write Private and Pub key and store to EEPROM
+    String pkNew = readPrivKey();
+    printToOLED("Private Key = "+ pkNew,1);
+    Serial2.print(pubKey);
+    
     //--------------------
     writeKeyEEPROM("12345678",10,17); // Default reset PIN when registering
     String newuname = queryfromHP();   // query username dari user
     writeKeyEEPROM(newuname,65,77);
     
-    printToOLEDmultisize("Register Success...\n",pkNew+"\nPress Logo Button To Exit",1,1);
+    printToOLEDmultisize("Register Success\n",pkNew,1,1);
     waitformoemoenooled();
              
               interruptTrigger=false;
@@ -1166,22 +1166,236 @@ void modeRegister() // Mode3
     var=0;
     readString="";
     delay(1000);
+}
+
+String GenerateAndPutPrivateKeyAndReturnPublicKey()
+{
+    unsigned char nonce[32], private_key[32];
+    
+    /* create a random seed, and a keypair out of that seed */
+    getSeeds();
+    ed25519_create_keypair(nonce, private_key, seeds);
+    
+    String hasil;
+    //Get the private key value //
+    for (int j=0;j<32;j++)
+    {
+      String karakter= String(private_key[j],HEX);
+      int leng = karakter.length();
+      if(leng==1)
+      {
+        karakter="0"+karakter;
+      }
+      hasil+=karakter;
+    }
+    Serial.println("Hasil private_key = "+hasil);
+    
+    //--- Put Generated Private Key into memory ------------
+     for(int i=32;i<=63;i++)
+    {
+      EEPROM.write(i,private_key[i-32]);
+      EEPROM.commit();
+    }
+    //--- Generate the public key from private key
+    
+    // Evaluate the curve function and check the public keys.
+    uint8_t result[32];
+    Serial.flush();
+    unsigned long start = micros();
+    Curve25519::eval(result, private_key, 0);
+
+    //--- Put Generated Public Key into memory ------------
+     for(int i=100;i<=131;i++)
+    {
+      EEPROM.write(i,result[i-100]);
+      EEPROM.commit();
+    }
+
+    String myPublicKey = readPubKey();
+    return myPublicKey;
+}
+
+void getSeeds()
+{
+  ed25519_create_seed(seeds);
+  for(int i=0;i<=31;i++)
+  {
+    int x = random(256);
+    seeds[i]=x;
   }
+}
+
+String readPrivKey() //Read Hex format into STR ( Private Key )
+{
+    String key;
+    for(int i=32;i<=63;i++)
+    {
+       String karakter = String(EEPROM.read(i),HEX);
+       if (karakter.length()==1)
+       {
+        karakter="0"+karakter;
+       }
+       if(karakter!=NULL)
+          key = String (key+karakter);
+       else 
+         return key;
+    }
+}
+
+String readPubKey() //Read Hex format into STR ( Public Key )
+{
+    String key;
+    for(int i=100;i<=131;i++)
+    {
+       String karakter = String(EEPROM.read(i),HEX);
+       if (karakter.length()==1)
+       {
+        karakter="0"+karakter;
+       }
+       if(karakter!=NULL)
+          key = String (key+karakter);
+       else 
+         return key;
+    }
+}
+
+String readPubKeyTemp() //Read Hex format into STR ( Public Key Temp untuk menu restore)
+{
+    String key;
+    for(int i=200;i<=231;i++)
+    {
+       String karakter = String(EEPROM.read(i),HEX);
+       if (karakter.length()==1)
+       {
+        karakter="0"+karakter;
+       }
+       if(karakter!=NULL)
+          key = String (key+karakter);
+       else 
+         return key;
+    }
+}
 
 void modeRestoreSK() // Mode 8
 {
-    printToOLED("**Mode Restore with SecretKey**",1);
+    printToOLED("**Mode Restore with SecretKey**\nInsert SecretKey",1);
     delay(1000);
-    String usernameBaru= queryfromHP(); // Query username baru dari HP
+
+    String SecKey = "20bbe0560a088d07627468158377a584c811abc72e3ee3295b11a9ee12835859"; //[64 HEX]
+    if(isValidRSK(SecKey))
+    {
+      unsigned char SKConvertedToHexArray[32];
+      for(int i=0;i<=31;i++)
+      {
+        String temp;
+        char temp1=SecKey[2*i];//MSB
+        char temp2=SecKey[(2*i)+1];//LSB
+        int valtemp1=valueOfHex(temp1);
+        int valtemp2=valueOfHex(temp2);
+        int nilai = valtemp1*16+valtemp2;
+        SKConvertedToHexArray[i]=nilai;
+      }
+      
+        // Evaluate the curve function and check the public keys.
+        uint8_t result[32];
+        Serial.flush();
+        unsigned long start = micros();
+        Curve25519::eval(result, SKConvertedToHexArray, 0);
+
+      //--- Put Generated Public Key into memory for temp ------------
+       for(int i=200;i<=231;i++)
+      {
+        EEPROM.write(i,result[i-200]);
+        EEPROM.commit();
+      }
+
+      String insertedPKey=readPubKeyTemp();
+      printToOLED(insertedPKey,1);
+      delay(50000);
+    }
+    else
+    {
+      printToOLED("SECRET KEY Tidak Valid",1);
+      delay(1000);
+    }
+    
+    /*String usernameBaru= queryfromHP(); // Query username baru dari HP
     writeKeyEEPROM(usernameBaru,65,77); // Write username ke wallet
     printToOLED("Username has been writen!!",1);
     delay(1000);
     String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
     writeKeyEEPROM(secretkeyBaru,32,63); // Write new SKey to wallet
-    printToOLED("Username has been writen!!\n\nSecretKey has been writen",1);
+    printToOLED("Username has been writen!!\n\nSecretKey has been writen",1);*/
     writeKeyEEPROM("12345678",10,17);
     readString="";
     var=0;
+}
+
+boolean isValidRSK(String key)
+{
+  boolean hasil = false;
+  
+  if(key.length()==64)
+  {
+    int count =0;
+    for (int i=0;i<=63;i++)
+    {
+      char x = key[i];
+      
+      if(!isValidCharRSK(x))
+        return false;
+      else
+        count++;
+    }
+    if(count==64)
+      return true;
+  }
+}
+
+boolean isValidCharRSK(char m)
+{
+  if((m=='1')||(m=='2')||(m=='3')||(m=='4')||(m=='5')||(m=='6')||(m=='7')||(m=='8')||(m=='9')||(m=='0')||(m=='a')||(m=='b')||(m=='c')||(m=='d')||(m=='e')||(m=='f'))
+  {
+    return true;
+  }
+  else
+    return false;
+}
+
+int valueOfHex(char m)
+{
+  if(m=='0')
+    return 0;
+  else if(m=='1')
+    return 1;
+  else if(m=='2')
+    return 2;
+  else if(m=='3')
+    return 3;
+  else if(m=='4')
+    return 4;
+  else if(m=='5')
+    return 5;
+  else if(m=='6')
+    return 6;
+  else if(m=='7')
+    return 7;
+  else if(m=='8')
+    return 8;
+  else if(m=='9')
+    return 9;
+  else if(m=='a')
+    return 10;
+  else if(m=='b')
+    return 11;
+  else if(m=='c')
+    return 12;
+  else if(m=='d')
+    return 13;
+  else if(m=='e')
+    return 14;
+  else if(m=='f')
+    return 15;
 }
 
 void modeLogin() // Mode 4
