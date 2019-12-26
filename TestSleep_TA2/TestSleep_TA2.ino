@@ -469,7 +469,7 @@ delay(200);
                 TimeNow = RTCnow();
                 TimeStop= RTCnext(TimeNow);
                 writeKeyEEPROM(String(TimeStop),24,29);
-            waitformoemoe();
+            waitformoemoenooled();
             break;
           }
 
@@ -565,7 +565,7 @@ delay(200);
         String tanggal = String(test.day())+"-"+ String(test.month())+"-"+ String(test.year());
         
           /// ----- Code Below is to Set Main Menu Mode on OLED ----------
-          String privatekey = readKey(32,64);
+          String privatekey = readPrivKey();
           String unamex = readKey(65,77);
           //Serial.println("Private Key : "+privatekey);
           printToOLEDtriple(detik,tanggal,"\nS-KEY",2,1,1);
@@ -573,8 +573,8 @@ delay(200);
           TimeStop=RTCnext(TimeNow);
           String uname=readKey(65,77);
 
-         // delay(700);
-         // printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
+          delay(700);
+          printToOLEDquint(String(TimeNow),String(TimeStop),readKey(24,29),readKey(65,77),readKey(10,17),1,1,1,1,1);
           //delay(700);
          // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
@@ -1278,10 +1278,9 @@ String readPubKeyTemp() //Read Hex format into STR ( Public Key Temp untuk menu 
 
 void modeRestoreSK() // Mode 8
 {
-    printToOLED("**Mode Restore with SecretKey**\nInsert SecretKey",1);
-    delay(1000);
-
-    String SecKey = "20bbe0560a088d07627468158377a584c811abc72e3ee3295b11a9ee12835859"; //[64 HEX]
+    printToOLED("**Mode Restore with SecretKey**\nPlease Insert SecretKey",1);
+    String SecKey = queryfromHP(); // Get Secret Key to Server
+    
     if(isValidRSK(SecKey))
     {
       unsigned char SKConvertedToHexArray[32];
@@ -1309,9 +1308,33 @@ void modeRestoreSK() // Mode 8
         EEPROM.commit();
       }
 
-      String insertedPKey=readPubKeyTemp();
-      printToOLED(insertedPKey,1);
-      delay(50000);
+      String insertedPKey=readPubKeyTemp(); //Read TempPubKey
+      printToOLED("Waiting ..",1);
+      Serial2.print(insertedPKey);//Kirim Ke HP Public Key untuk dicocokkan
+
+      String confirmMessage = queryfromHP();
+      
+      if(confirmMessage=="Beda")
+      {
+      }
+      else
+      {
+        //--- Put Private Key into memory ------------
+         for(int i=32;i<=63;i++)
+        {
+          EEPROM.write(i,SKConvertedToHexArray[i-32]);
+          EEPROM.commit();
+        }
+        //--- Put Public Key into memory ------------
+         for(int i=100;i<=131;i++)
+        {
+          EEPROM.write(i,SKConvertedToHexArray[i-100]);
+          EEPROM.commit();
+        }
+        //Put username also
+        writeKeyEEPROM(confirmMessage,65,77);
+        printToOLED("Recover Success\n\nPress Logo to Exit",1);
+      }
     }
     else
     {
