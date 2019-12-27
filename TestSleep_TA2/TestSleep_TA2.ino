@@ -145,6 +145,8 @@ void loop() {
   if (TimeNow>=NextAuth) // User Ignored Authentication
   {
     flushMem();
+    flushMem();
+    flushMem();
   }
 
   ///////////////////////////////////////////////////////////////////////////////////
@@ -186,6 +188,8 @@ delay(200);
        // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
         {
+          flushMem();
+          flushMem();
           flushMem();
         }
        // ---------------------------------------------------------------
@@ -230,6 +234,8 @@ delay(200);
         }
         else
         {
+          flushMem();
+          flushMem();
           flushMem();
         }
         //-----------------------
@@ -576,6 +582,8 @@ delay(200);
 // ----------------Bila Bongkar-----------------------------------------------------
 if (interruptTrigger) //Menu Bongkar --->> flush username juga
 {
+  flushMem();
+  flushMem();
   flushMem();
 }
 // ----------------------------------------------------------------
@@ -1256,7 +1264,7 @@ String readPubKeyTemp() //Read Hex format into STR ( Public Key Temp untuk menu 
 void modeRestoreSK() // Mode 8
 {
     printToOLED("**Mode Restore with SecretKey**\n\nPlease Click Proceed",1);
-    String SecKey = queryfromHP(); // Get Secret Key to Server
+    String SecKey = queryfromHP(); // Get Secret Key from phone
     
     if(isValidRSK(SecKey))
     {
