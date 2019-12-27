@@ -142,9 +142,9 @@ void loop() {
   NextAuth=stringToInt(readKey(24,29)); // next auth 24 to 29
   Serial.println("NextAuth = "+String(NextAuth));//
 
-  if (TimeNow>=NextAuth) // Fail -> Shindeiru TOKI MODE
+  if (TimeNow>=NextAuth) // User Ignored Authentication
   {
-      writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64);
+    flushMem();
   }
 
   ///////////////////////////////////////////////////////////////////////////////////
@@ -174,7 +174,6 @@ delay(200);
   x=false;
   if (!x) // bila bangun
   { 
-    //writeKeyEEPROM("12345678",10,17); // Flush PIN
     while(!x && !interruptTrigger)  // normal time
     {
       //---------- Update variable waktu di awal ----------------
@@ -187,11 +186,7 @@ delay(200);
        // ----------------Bila Bongkar-----------------------------------------------------
         if (interruptTrigger) //Menu Bongkar --->> flush username juga
         {
-            writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
-            writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
-            String x = randStr(8);
-            writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
-            EEPROM.commit();
+          flushMem();
         }
        // ---------------------------------------------------------------
   
@@ -223,15 +218,11 @@ delay(200);
         
         if (readString.length() > 0)   {  
         var = readString.toInt();}
-        //printToOLED("Nilai Var: "+String(var),1);
-        //delay(300);
         
-        // bila shinde masuk mode 1
-        // Bila bongkar masuk mode 2
         boolean shindekah = ShindeiruKa();
-        boolean bongkarkah = BongkarKa();
 
         /// EDIT THIS FOR PROGRAMING DEBUGGING---
+        
         //---------- Shindeiru bila telat masuk ----------- 
          if (TimeNow<NextAuth)
         {
@@ -239,23 +230,13 @@ delay(200);
         }
         else
         {
-          writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
-          writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
-          String x = randStr(8);
-          writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+          flushMem();
         }
         //-----------------------
         /// Penentuan mode perusakan kunci-------
         if(shindekah) 
         {
-          if(bongkarkah)
-          {
-            var=2;
-          }
-          else
-          {
-            var=1;
-          }
+          var=2;
         }
    
         /// --------------------------------------
@@ -394,10 +375,7 @@ delay(200);
             var=0;
             break;
            }
-          //OPT 1 "Receive" -> String dikirim dri wallet 2 buah yaitu Stealth address dan USERNAME.. , sebelum itu wallet ngirim PIN langsung ke HP, dicocokkan di HP.
-          // bila PIN sama, nullkan response kembali dan kirim sinyal OK ke wallet.
-
-          //OPT 2 Receive -> uname dan stealthkey dikirim sekaligus, dipilah2 dijava
+           
           case 6: // Menu Receive
           {
             printToOLED("Receive Mode\n\nPlease enter your PIN!",1);
@@ -598,11 +576,7 @@ delay(200);
 // ----------------Bila Bongkar-----------------------------------------------------
 if (interruptTrigger) //Menu Bongkar --->> flush username juga
 {
-    writeKeyEEPROM("Omae wa mou shindeiru",32,63); //Flush SecretKey
-    writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
-    String x = randStr(8);
-    writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
-    EEPROM.commit();
+  flushMem();
 }
 // ----------------------------------------------------------------
 interruptTrigger=false;
@@ -625,6 +599,15 @@ void rusak()
   detachInterrupt(34);
 }
 
+void flushMem()
+{
+    writeKeyEEPROM("Omae wa Mou Shindeiru!!",32,64); //flush private Key
+    writeKeyEEPROM("Omea wa Mou Shindeiru!!",100,131); // flush public Key
+    writeKeyEEPROM("qwertyuiopasd",65,77); // Flush Username
+    String x = randStr(8);
+    writeKeyEEPROM(x,10,17); // Flush PIN!! PLEASE ENABLE THIS IN REAL ENVIRONMENT
+    EEPROM.commit();
+}
 void print_wakeup_reason(){
   esp_sleep_wakeup_cause_t wakeup_reason;
   wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -1000,14 +983,6 @@ boolean ShindeiruKa()
     return false;
 }
 
-boolean BongkarKa()
-{
-  if(readKey(65,77)=="qwertyuiopasd")
-    return true;
-  else 
-    return false;
-}
-
 void waitfromHP (String desiredValue) //Wait until phone send desidedvalue
 {
    String query = Serial2.readString(); // disuruh query
@@ -1280,7 +1255,7 @@ String readPubKeyTemp() //Read Hex format into STR ( Public Key Temp untuk menu 
 
 void modeRestoreSK() // Mode 8
 {
-    printToOLED("**Mode Restore with SecretKey**\nPlease Insert SecretKey",1);
+    printToOLED("**Mode Restore with SecretKey**\n\nPlease Click Proceed",1);
     String SecKey = queryfromHP(); // Get Secret Key to Server
     
     if(isValidRSK(SecKey))
@@ -1310,14 +1285,21 @@ void modeRestoreSK() // Mode 8
         EEPROM.commit();
       }
 
-      String insertedPKey=readPubKeyTemp(); //Read TempPubKey
-      printToOLED("Waiting ..",1);
-      Serial2.print(insertedPKey);//Kirim Ke HP Public Key untuk dicocokkan
+      String insertedPubKey=readPubKeyTemp(); //Read TempPubKey // PubKey hasil Curve25519 dari PrivKey yang dimasukkan
+      printToOLED("Please Wait ..",1);
+      String verif = SHA256(insertedPubKey);
+      Serial2.print(verif);//Kirim Ke HP Public Key untuk dicocokkan
 
       String confirmMessage = queryfromHP();
       
       if(confirmMessage=="Beda")
       {
+        printToOLED("Key Not Found",1);
+        delay(3000);
+      }
+      else if(confirmMessage=="moemoe")
+      {
+        
       }
       else
       {
@@ -1340,17 +1322,10 @@ void modeRestoreSK() // Mode 8
     }
     else
     {
-      printToOLED("SECRET KEY Tidak Valid",1);
+      printToOLED("Private Key Format not Valid",1);
       delay(1000);
     }
     
-    /*String usernameBaru= queryfromHP(); // Query username baru dari HP
-    writeKeyEEPROM(usernameBaru,65,77); // Write username ke wallet
-    printToOLED("Username has been writen!!",1);
-    delay(1000);
-    String secretkeyBaru = queryfromHP();// Query secretkey baru dari HP
-    writeKeyEEPROM(secretkeyBaru,32,63); // Write new SKey to wallet
-    printToOLED("Username has been writen!!\n\nSecretKey has been writen",1);*/
     writeKeyEEPROM("12345678",10,17);
     readString="";
     var=0;
